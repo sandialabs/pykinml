@@ -1,0 +1,26 @@
+This folder contains example scripts for how to train use NNPESs.
+
+data_holder:
+holds sample sql databases used in these examples. Additional columns can be added to distinguish molecules by the anchor point they were sampled from, the temperature used during normal mode sampling,
+the distance from the anchor point, etc. The required data for training training is energy, forces, atomic coordinates (carbons first, then hydrogens), and a unique label for each structure.
+
+sample_tvt.txt:
+text file containing the training/validation/test (tvt) mask for the data in data_holder. The columns are formated:
+database/id mask
+where database is the name of the sql file (minus the .db) that holds the structure, id is the unique identity of the xyz structure in the database, and mask designates whether the structure is to be used for
+training: 1
+validation: 0
+testing: -1
+training or validation: 2
+
+train_a_model.py:
+Calls train_pes from trainer.py to train a model. Loads arguments from args.json.
+
+run_model:
+loads the models from ensemble directory and performs energy and force calculation on c5h5.xyz
+
+freq_calc.py:
+loads the models from ensemble directory, performs energy and force calculation on c5h5.xyz, optimizes the molecule, calculates new energy and forces, and calculates vibrational frequencies.
+
+freq_calc_ts.py:
+loads the models from ensemble directory, performs energy and force calculation on ts_to_opt.xyz, perform transition state optimization using Sella on the molecule, calculates new energy and forces, and calculates vibrational frequencies.

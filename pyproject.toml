@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+exclude = ["build", "dist", "ensemble", "examples"]
+
+[tool.setuptools.package-data]
+"pykinml.tpl" = []
+
+[project]
+name = "pykinml"
+version = "1.0.2"
+description = "Neural Net Potential Energy Surface"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+# keywords = []
+authors = [
+    {name="cjdever", email="cjdever@sandia.gov"},
+    {name="cmartia", email="cmartia@sandia.gov"},
+    {name="Judit Zádor", email="jzador@sandia.gov"},
+    {name="Habib Najm", email="hnnajm@sandia.gov"},
+]
+maintainers = [
+    {name="cjdever", email="cjdever@sandia.gov"},
+]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering :: Chemistry"
+]
+dependencies = [
+        "numpy>=1.17.0",
+        "ase>=3.19",
+	"h5py>=3.7.0",
+	"pandas",
+	"aevmod"
+]
+
+[project.optional-dependencies]
+plot = [
+]
+
+[project.urls]
+homepage = "https://github.com/sandialabs/pykinml"
+documentation = "https://github.com/sandialabs/pykinml/wiki"
+
