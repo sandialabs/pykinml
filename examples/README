@@ -1,26 +1,42 @@
-This folder contains example scripts for how to train use NNPESs.
+Scripts for training and running models.
 
-data_holder:
-holds sample sql databases used in these examples. Additional columns can be added to distinguish molecules by the anchor point they were sampled from, the temperature used during normal mode sampling,
-the distance from the anchor point, etc. The required data for training training is energy, forces, atomic coordinates (carbons first, then hydrogens), and a unique label for each structure.
 
 sample_tvt.txt:
-text file containing the training/validation/test (tvt) mask for the data in data_holder. The columns are formated:
-database/id mask
-where database is the name of the sql file (minus the .db) that holds the structure, id is the unique identity of the xyz structure in the database, and mask designates whether the structure is to be used for
-training: 1
-validation: 0
-testing: -1
-training or validation: 2
+File holding the training/validation/testing (tvt) mask of the dataset for the train_single_fid and train_multi_node examples.
 
-train_a_model.py:
-Calls train_pes from trainer.py to train a model. Loads arguments from args.json.
+
+mf_tvt.txt:
+File holding the training/validation/testing (tvt) mask of the dataset for the train_delta and train_multi_fid examples.
+
+train_single_fid:
+train a model. Can be done using DDP on gpus or without DDP on cpus. Before the training loop begins the model and data are prepared.
+Your expected output should look similar to out.train_single_fid. Note that the exact numbers may vary on different machines/operating systems
+but it should always contain a summary of the data preparation/loading steps and a summary of the model.
 
 run_model:
-loads the models from ensemble directory and performs energy and force calculation on c5h5.xyz
+used the model trained by train_single_fid to predict the energy/forces on a molecule generated with ase
+When the model is loaded, it should print out the list of activation functions being used. Expected output for this example is:
+"activation functions: ['gaussian', 'gaussian', 'gaussian', 'identity']"
+Followed by the energy and forces predicted by the model.
 
-freq_calc.py:
-loads the models from ensemble directory, performs energy and force calculation on c5h5.xyz, optimizes the molecule, calculates new energy and forces, and calculates vibrational frequencies.
+load_model:
+loads the model trained with train_single_fid and continues training.
+Your expected output should look similar to out.load_model. Note that the exact numbers may vary on different machines/operating systems
+but it should always contain a summary of the data preparation/loading steps and a summary of the model.
 
-freq_calc_ts.py:
-loads the models from ensemble directory, performs energy and force calculation on ts_to_opt.xyz, perform transition state optimization using Sella on the molecule, calculates new energy and forces, and calculates vibrational frequencies.
+
+train_multi_fid.py:
+same as train_single_fid ony the model is now trained with multiple fidelity levels. The output here should look similar to train_single_fid, but many parts will appear twice (once for each fidelity level). 
+Also, this example also is set to use force training and therefore will also print the force loss each epoch. This example uses a smaller network and dataset than the previus examples to expediate results with force training.
+Your expected output should look similar to out.train_multi_fid. Note that the exact numbers may vary on different machines/operating systems
+but it should always contain a summary of the data preparation/loading steps and a summary of the model.
+
+train_multi_node:
+same as train_single_fid but runs on multiple nodes. For Slurm submission.
+The data preperation/loading and model setup steps will look the same as is seen in out.train_single_fid but each GPU will print it's own output.
+
+train_delta:
+train a model to predict the difference between two fidelity levels.
+Your expected output should look similar to out.train_delta. Note that the exact numbers may vary on different machines/operating systems
+but it should always contain a summary of the data preparation/loading steps and a summary of the model.
+

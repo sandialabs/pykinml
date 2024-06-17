@@ -1,0 +1,46 @@
+
+
+
+
+
+aev.py:
+A python implementation of aevmod's aev generation. If aevmod is not installed, this will be called in it's place.
+Note that aev.py does not work with force training so aevmod is required when training to forces.
+Installing pykinml via pip will attempt to install aevmod as a dependency.
+
+daev.py:
+Calculates forces. Accepts aev, derivative of aev with respect to coordinates (daev), energy, and molecule index (inds).
+Used pytorch's autograd to get derivative of energy with respect to aev. Loops over inds and performs matrix multiplication of 
+dE/daev and daev to get forces for each molecule. 
+
+data.py:
+Reads data from source file (sql or hdf) and calls aevmod (or aev.py if aevmod is unavailable). 
+Seperates data into training/validation, and testing. The seperated data is saved and will be loaded 
+for training. This saving and reloading of the data is because the preprocessing of the data (specifically the 
+calculation of the aevs and their derivatives) can be very memory intensive for a large dataset. This method allows
+the data to be prepared on a machine that has access to a large amount of memory and then the training can be performed
+elsewhere.
+
+trainer.py:
+Contains the training loop and Runner class for single fidelity models. Can train with pytorch's DistributedDataParallel (DDP)
+on multiple gpus or on cpus without DDP.
+
+hdf5_handler.py:
+Called by data.py when training to or saving data to hdf5 files.
+
+model_calculator.py:
+ASE calculator for trained models.
+
+multi_fid_loop.py:
+Contains the training loop and Runner class for multi fidelity models. DDP not yet implemented.
+
+nnpes.py:
+Contains the classes that perform model calculations. 
+
+prepper.py:
+Prepares the model's for  training/running. Calculates single atom energies (SAEs). Sends instructions for which data to pull
+from source file to data.py and loads that data 
+
+rdb.py
+Script for communicating with sql files. Can be used to read from, ammend, or create sql files.
+

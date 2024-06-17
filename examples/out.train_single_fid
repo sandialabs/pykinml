@@ -1,0 +1,193 @@
+preping data
+Instantiating PES data object
+Get data
+prepper: calling read_xidtxt with args.trtsid_name[0]: sample_tvt.txt
+prepper: calling get_data with xid length: 2112
+names:  ['data_holder/C5H5.db']
+len(names):  1
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 2112
+in get_data: nblk: 2112
+Building PES AEV data base
+done...
+ndat: 2112
+Generating AEV (min):  0.11576211955398322
+random seed: 0
+prepper.py: prep_dat: Prepare training, validation, and testing data
+prepper.py: prep_dat: tvt mask for testset was set based on the file: ['sample_tvt.txt'].
+self.num_nn:  2
+len(self.full_symb_data):  2112
+self.atom_types:  ['C', 'H']
+max(itr):  2047
+nattr_maxs:  [5, 5]
+SAE bounds:  ([-1043.30436565, -24.8356588], [-1027.30436565, -8.835658800000001])
+Performing least squares fitting to get SAE values to subtact from energies.
+SAE energies:  [-1035.4398438    -16.97113695]
+min energy:  -1.711258999634083
+max energy:  1.3776371038884463
+Mean of subtracted energies (should be close to 0):  -1.6084911180769268e-12
+Range of subtracted energies:  3.0888961035225293
+world_size:  8
+rank:  cpu
+torch.cuda.is_available():  True
+about to load train objects!
+Data random seed:  0
+args.trpath:  my_model_0_1/training1/
+keys:  ['aevs', 'engs']
+DATA LOADED!
+model random seed: 1
+activation functions: ['gaussian', 'gaussian', 'gaussian', 'identity']
+lrscheduler:  rop
+net: CompositeNetworks(
+  (NNs): ParameterList(
+      (0): Object of type: ModuleList
+      (1): Object of type: ModuleList
+    (0): ModuleList(
+      (0): LinearBlock(
+        (linear): Linear(in_features=224, out_features=48, bias=False)
+      )
+      (1): LinearBlock(
+        (linear): Linear(in_features=48, out_features=24, bias=False)
+      )
+      (2): LinearBlock(
+        (linear): Linear(in_features=24, out_features=12, bias=False)
+      )
+      (3): LinearBlock(
+        (linear): Linear(in_features=12, out_features=1, bias=False)
+      )
+    )
+    (1): ModuleList(
+      (0): LinearBlock(
+        (linear): Linear(in_features=224, out_features=48, bias=False)
+      )
+      (1): LinearBlock(
+        (linear): Linear(in_features=48, out_features=24, bias=False)
+      )
+      (2): LinearBlock(
+        (linear): Linear(in_features=24, out_features=12, bias=False)
+      )
+      (3): LinearBlock(
+        (linear): Linear(in_features=12, out_features=1, bias=False)
+      )
+    )
+  )
+)
+self.keys:  ['aevs', 'engs']
+
+device  cpu  epoch:  0
+device  cpu   train MAE:  20.726574321919013
+device  cpu   train RMSE:  25.48763832786415
+device  cpu   train Linf:  80.72844286549761
+device  cpu   valid MAE:  16.187555035570877
+device  cpu   valid RMSE:  19.828180429597925
+device  cpu   valid Linf:  36.06335502377861
+device  cpu   test MAE:  27.125322166718142
+device  cpu   test RMSE:  27.17889240731482
+device  cpu   test Linf:  31.245812091170976
+
+device  cpu  epoch:  1
+device  cpu   train MAE:  16.227548693206913
+device  cpu   train RMSE:  19.17391988600289
+device  cpu   train Linf:  37.89391600609838
+device  cpu   valid MAE:  13.685592080329918
+device  cpu   valid RMSE:  16.60319444902518
+device  cpu   valid Linf:  30.859592016362953
+device  cpu   test MAE:  25.04968685573324
+device  cpu   test RMSE:  25.113268108515598
+device  cpu   test Linf:  29.944839062169056
+
+device  cpu  epoch:  2
+device  cpu   train MAE:  10.492983370691517
+device  cpu   train RMSE:  12.896133429370575
+device  cpu   train Linf:  31.873097367400288
+device  cpu   valid MAE:  6.62386800379244
+device  cpu   valid RMSE:  8.036276916929099
+device  cpu   valid Linf:  20.055529523425044
+device  cpu   test MAE:  11.885124725449396
+device  cpu   test RMSE:  12.057565348756489
+device  cpu   test Linf:  18.46594026154863
+
+device  cpu  epoch:  3
+device  cpu   train MAE:  5.105934642671433
+device  cpu   train RMSE:  6.2212520936843925
+device  cpu   train Linf:  18.701708763503984
+device  cpu   valid MAE:  4.721446579935378
+device  cpu   valid RMSE:  5.923239230988643
+device  cpu   valid Linf:  14.598095369318314
+device  cpu   test MAE:  5.427614355654384
+device  cpu   test RMSE:  5.871015674935583
+device  cpu   test Linf:  12.99687887530988
+
+device  cpu  epoch:  4
+device  cpu   train MAE:  3.84367930570975
+device  cpu   train RMSE:  4.655157497068437
+device  cpu   train Linf:  13.017071003039483
+device  cpu   valid MAE:  4.165398703843825
+device  cpu   valid RMSE:  5.208855670119838
+device  cpu   valid Linf:  12.636701542473846
+device  cpu   test MAE:  3.6529488395815584
+device  cpu   test RMSE:  4.315699288852844
+device  cpu   test Linf:  11.38236524105199
+
+device  cpu  epoch:  5
+device  cpu   train MAE:  3.299051384644642
+device  cpu   train RMSE:  3.964956380591892
+device  cpu   train Linf:  10.16621832593312
+device  cpu   valid MAE:  3.390574644328207
+device  cpu   valid RMSE:  4.249708474036517
+device  cpu   valid Linf:  12.417150747229629
+device  cpu   test MAE:  3.532781527753307
+device  cpu   test RMSE:  4.238375107479762
+device  cpu   test Linf:  11.307381405329146
+
+device  cpu  epoch:  6
+device  cpu   train MAE:  2.927764642101468
+device  cpu   train RMSE:  3.53655669799592
+device  cpu   train Linf:  9.294075520653838
+device  cpu   valid MAE:  2.850507159248332
+device  cpu   valid RMSE:  3.6700405010385757
+device  cpu   valid Linf:  12.353004790015431
+device  cpu   test MAE:  3.4749923537461505
+device  cpu   test RMSE:  4.206621660702384
+device  cpu   test Linf:  11.23366040370723
+
+device  cpu  epoch:  7
+device  cpu   train MAE:  2.6541769993830093
+device  cpu   train RMSE:  3.2319490521710783
+device  cpu   train Linf:  9.236239313790497
+device  cpu   valid MAE:  2.4952645437853835
+device  cpu   valid RMSE:  3.341311789915416
+device  cpu   valid Linf:  12.238959292364942
+device  cpu   test MAE:  3.3492712034465795
+device  cpu   test RMSE:  4.110829541837623
+device  cpu   test Linf:  11.046346954321857
+
+device  cpu  epoch:  8
+device  cpu   train MAE:  2.4293198314301
+device  cpu   train RMSE:  2.9932354844178986
+device  cpu   train Linf:  8.9544239666881
+device  cpu   valid MAE:  2.317605611015746
+device  cpu   valid RMSE:  3.1342905303769366
+device  cpu   valid Linf:  11.761597539693454
+device  cpu   test MAE:  2.8828791723868026
+device  cpu   test RMSE:  3.728893014468436
+device  cpu   test Linf:  10.479531924611354
+
+device  cpu  epoch:  9
+device  cpu   train MAE:  2.254887688509485
+device  cpu   train RMSE:  2.806921764236639
+device  cpu   train Linf:  8.474661227205905
+device  cpu   valid MAE:  2.1215338525041716
+device  cpu   valid RMSE:  2.9639233807501313
+device  cpu   valid Linf:  11.623192216905528
+device  cpu   test MAE:  2.7824145699780307
+device  cpu   test RMSE:  3.637097541310908
+device  cpu   test Linf:  10.262921542371787
+device Number  cpu is DONE!!!
+Time it took:  34.4335515499115

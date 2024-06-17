@@ -1,0 +1,158 @@
+world_size:  8
+rank:  cpu
+torch.cuda.is_available():  True
+about to load train objects!
+Data random seed:  0
+args.trpath:  my_model_0_1//training1/
+keys:  ['aevs', 'engs']
+DATA LOADED!
+model random seed: 1
+activation functions: ['gaussian', 'gaussian', 'gaussian', 'identity']
+ learning rate loaded
+net: CompositeNetworks(
+  (NNs): ParameterList(
+      (0): Object of type: ModuleList
+      (1): Object of type: ModuleList
+    (0): ModuleList(
+      (0): LinearBlock(
+        (linear): Linear(in_features=224, out_features=48, bias=False)
+      )
+      (1): LinearBlock(
+        (linear): Linear(in_features=48, out_features=24, bias=False)
+      )
+      (2): LinearBlock(
+        (linear): Linear(in_features=24, out_features=12, bias=False)
+      )
+      (3): LinearBlock(
+        (linear): Linear(in_features=12, out_features=1, bias=False)
+      )
+    )
+    (1): ModuleList(
+      (0): LinearBlock(
+        (linear): Linear(in_features=224, out_features=48, bias=False)
+      )
+      (1): LinearBlock(
+        (linear): Linear(in_features=48, out_features=24, bias=False)
+      )
+      (2): LinearBlock(
+        (linear): Linear(in_features=24, out_features=12, bias=False)
+      )
+      (3): LinearBlock(
+        (linear): Linear(in_features=12, out_features=1, bias=False)
+      )
+    )
+  )
+)
+self.keys:  ['aevs', 'engs']
+
+device  cpu  epoch:  0
+device  cpu   train MAE:  4.987682534852833
+device  cpu   train RMSE:  6.576938183162765
+device  cpu   train Linf:  24.308889087735654
+device  cpu   valid MAE:  2.5049388494995677
+device  cpu   valid RMSE:  3.521473793738206
+device  cpu   valid Linf:  13.911673533041359
+device  cpu   test MAE:  5.138398016066121
+device  cpu   test RMSE:  5.64639433703807
+device  cpu   test Linf:  12.555208308361696
+
+device  cpu  epoch:  1
+device  cpu   train MAE:  2.2594645238388527
+device  cpu   train RMSE:  2.8214892434128833
+device  cpu   train Linf:  9.570830793793835
+device  cpu   valid MAE:  2.0825007993259077
+device  cpu   valid RMSE:  2.94865248282152
+device  cpu   valid Linf:  11.818006212135307
+device  cpu   test MAE:  2.909443760213565
+device  cpu   test RMSE:  3.7375279407306703
+device  cpu   test Linf:  10.397661920344012
+
+device  cpu  epoch:  2
+device  cpu   train MAE:  2.110095682846283
+device  cpu   train RMSE:  2.6259713967901552
+device  cpu   train Linf:  8.181908646290216
+device  cpu   valid MAE:  2.0089290489748746
+device  cpu   valid RMSE:  2.873497277056612
+device  cpu   valid Linf:  11.618730567567177
+device  cpu   test MAE:  2.7997820505354607
+device  cpu   test RMSE:  3.6395094811832083
+device  cpu   test Linf:  10.191362512300627
+
+device  cpu  epoch:  3
+device  cpu   train MAE:  2.0599651827100054
+device  cpu   train RMSE:  2.5726233064933584
+device  cpu   train Linf:  7.895367026619892
+device  cpu   valid MAE:  1.989173360322371
+device  cpu   valid RMSE:  2.8453173107242464
+device  cpu   valid Linf:  11.771595104830125
+device  cpu   test MAE:  3.003387669469556
+device  cpu   test RMSE:  3.7944201889170146
+device  cpu   test Linf:  10.320108737099199
+
+device  cpu  epoch:  4
+device  cpu   train MAE:  2.0213061056798036
+device  cpu   train RMSE:  2.527070355156555
+device  cpu   train Linf:  8.195715804585268
+device  cpu   valid MAE:  1.901784398662625
+device  cpu   valid RMSE:  2.7563765751164366
+device  cpu   valid Linf:  11.424882494315616
+device  cpu   test MAE:  2.7199258349799105
+device  cpu   test RMSE:  3.553288658336387
+device  cpu   test Linf:  9.936829306024709
+
+device  cpu  epoch:  5
+device  cpu   train MAE:  1.9667102733338944
+device  cpu   train RMSE:  2.4652938024041204
+device  cpu   train Linf:  7.874501411728355
+device  cpu   valid MAE:  1.913099960720467
+device  cpu   valid RMSE:  2.751350931919469
+device  cpu   valid Linf:  11.587153128563832
+device  cpu   test MAE:  2.9263217837101383
+device  cpu   test RMSE:  3.7065885521056554
+device  cpu   test Linf:  10.0622561752968
+
+device  cpu  epoch:  6
+device  cpu   train MAE:  1.938200221717334
+device  cpu   train RMSE:  2.433206470871282
+device  cpu   train Linf:  8.159059806567816
+device  cpu   valid MAE:  1.8353416510096323
+device  cpu   valid RMSE:  2.6693701686654463
+device  cpu   valid Linf:  11.281157844334942
+device  cpu   test MAE:  2.6875834755257055
+device  cpu   test RMSE:  3.497767734502819
+device  cpu   test Linf:  9.722351423407298
+
+device  cpu  epoch:  7
+device  cpu   train MAE:  1.8819039643578033
+device  cpu   train RMSE:  2.371457546036655
+device  cpu   train Linf:  8.546038492813839
+device  cpu   valid MAE:  1.7734191706589142
+device  cpu   valid RMSE:  2.5941733473592516
+device  cpu   valid Linf:  10.918118595392016
+device  cpu   test MAE:  2.4291996857827427
+device  cpu   test RMSE:  3.2534699310277713
+device  cpu   test Linf:  9.325152322069313
+
+device  cpu  epoch:  8
+device  cpu   train MAE:  1.8396025962216427
+device  cpu   train RMSE:  2.3201399406269103
+device  cpu   train Linf:  8.496027791015148
+device  cpu   valid MAE:  1.734835212935815
+device  cpu   valid RMSE:  2.5578870648787633
+device  cpu   valid Linf:  10.905442256189582
+device  cpu   test MAE:  2.4646552523628538
+device  cpu   test RMSE:  3.275043099937921
+device  cpu   test Linf:  9.278496828372383
+
+device  cpu  epoch:  9
+device  cpu   train MAE:  1.8189193881022532
+device  cpu   train RMSE:  2.296572937457669
+device  cpu   train Linf:  8.478583500455874
+device  cpu   valid MAE:  1.6831716732643203
+device  cpu   valid RMSE:  2.5022049314127073
+device  cpu   valid Linf:  10.665466852967059
+device  cpu   test MAE:  2.331266342271425
+device  cpu   test RMSE:  3.1318687859946306
+device  cpu   test Linf:  9.004066669259029
+device Number  cpu is DONE!!!
+Time it took:  29.082502841949463

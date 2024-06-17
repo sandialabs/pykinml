@@ -15,18 +15,26 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” 
 
 import torch
 from pykinml import data
+import math
 from pykinml import trainer as pes
-from pykinml import daev
+from pykinml import daev as daev
 from ase import Atoms
 from ase.calculators.calculator import Calculator, all_changes
+from ase.units import Bohr,Rydberg,kJ,kB,fs,Hartree,mol,kcal
 
 import numpy as np
+import pandas as pd
+import sys
+import os
+from pathlib import Path
+from io import StringIO
+
 
 
 class Nn_surr(Calculator):
     implemented_properties = ['energy', 'forces']
 
-    def __init__(self, fname, restart=None, ignore_bad_restart_file=False, label='surrogate', atoms=None, tnsr=True, nrho_rad=16, nrho_ang=8, nalpha=8, R_c=[5.2, 3.8],
+    def __init__(self, fname, restart=None, ignore_bad_restart_file=False, label='surrogate', atoms=None, tnsr=True, device='cpu', nrho_rad=16, nrho_ang=8, nalpha=8, R_c=[5.2, 3.8], mf=False, present_elements=['C','H'], 
                  **kwargs):
         Calculator.__init__(self, restart=restart, ignore_bad_restart_file=ignore_bad_restart_file, label=label,
                             atoms=atoms, tnsr=tnsr, **kwargs)
@@ -34,20 +42,22 @@ class Nn_surr(Calculator):
             self.multinn = True
         else:
             self.multinn = False
-        self.surrogate = Nnpes_calc(fname, self.multinn)
+        self.surrogate = Nnpes_calc(fname, self.multinn, mf=mf, device=device, present_elements=present_elements)
         self.tnsr = tnsr
+        self.device = device
         self.nrho_rad = nrho_rad
         self.nrho_ang = nrho_ang
         self.nalpha = nalpha
         self.R_c = R_c
 
-    def calculate(self, atoms=None, properties=['energy', 'forces'], system_changes=all_changes, loaddb=None, args=None, xid=None):
+    def calculate(self, atoms=None, properties=['energy', 'forces'], system_changes=all_changes, args=None):
         Calculator.calculate(self, atoms, properties, system_changes)
         if 'forces' in properties:
             favail = True
         else:
             favail = False
-
+        if atoms is None:
+            atoms = self.atoms
         xyzd = [[[s for s in atoms.symbols], np.array(atoms.positions)]]
         self.surrogate.dpes.aev_from_xyz(xyzd, self.nrho_rad, self.nrho_ang, self.nalpha, self.R_c, False)
         self.surrogate.nforce = self.surrogate.dpes.full_symb_data[0].__len__() * 3
@@ -55,12 +65,12 @@ class Nn_surr(Calculator):
         if self.multinn:
             energy, Estd, E_hf = self.surrogate.eval()
             if favail:
-                force, Fstd, force_ind = self.surrogate.evalforce()
+                force, Fstd, force_ind = self.surrogate.eval_force()
         else:
             energy = self.surrogate.eval()[0][0]
             Estd = torch.tensor(0.)
             if favail:
-                force = self.surrogate.evalforce()
+                force = self.surrogate.eval_force()
                 Fstd = torch.tensor(0.)
 
         if self.tnsr:
@@ -74,88 +84,82 @@ class Nn_surr(Calculator):
                 if self.multinn:
                     self.results['all_forces'] = force_ind
         else:
-            self.results['energy'] = energy.detach().numpy()
-            self.results['energy_std'] = Estd.detach().numpy()
-            if self.multinn:
-                self.results['all_energies'] = E_hf.detach().numpy()
-            if favail:
-                self.results['forces'] = np.reshape(force.detach().numpy(), (-1, 3))
-                self.results['forces_std'] = Fstd.detach().numpy()
+            if self.device=='cpu':
+                self.results['energy'] = energy.detach().numpy()
+                self.results['energy_std'] = Estd.detach().numpy()
                 if self.multinn:
-                    self.results['all_forces'] = force_ind.detach().numpy()
+                    self.results['all_energies'] = E_hf.detach().numpy()
+                if favail:
+                    self.results['forces'] = np.reshape(force.detach().numpy(), (-1, 3))
+                    self.results['forces_std'] = Fstd.detach().numpy()
+                    if self.multinn:
+                        self.results['all_forces'] = force_ind.detach().numpy()
+            else:
+                self.results['energy'] = energy.detach().cpu().numpy()
+                self.results['energy_std'] = Estd.detach().cpu().numpy()
+                if self.multinn:
+                    self.results['all_energies'] = E_hf.detach().cpu().numpy()
+                if favail:
+                    self.results['forces'] = np.reshape(force.detach().cpu().numpy(), (-1, 3))
+                    self.results['forces_std'] = Fstd.detach().cpu().numpy()
+                    if self.multinn:
+                        self.results['all_forces'] = force_ind.detach().cpu().numpy()
+
 
 # ====================================================================================================
 
-
 class My_args():
 
-    def __init__(self, nntype, model_name):
-        self.nntype = [nntype]
-        if model_name == None:
-            self.load_model = False
-        else:
-            if isinstance(model_name, list):
-                self.load_model_name = model_name
-            else:
-                self.load_model_name = [model_name]
-        self.nw = True
-        self.savepth = None
-        self.savepth_pars = None
-        self.device = torch.device('cpu')
+    def __init__(self, load_model_name, mf=False, present_elements=['C','H']):
+        self.load_model_name = load_model_name
+        self.multi_fid = mf
+        self.num_species = len(present_elements)
+        self.present_elements=present_elements
 
+# ==============================================================================================
 class Nnpes_calc():
 
-    def __init__(self, fname, multinn=False):
-        self.dpes = data.Data_pes(['C', 'H'])
+    def __init__(self, fname, multinn=False, device='cpu', mf=False, present_elements=['C','H']):
+        self.device = device
+        self.dpes = data.Data_pes(atom_types=present_elements)
+        self.present_elements=present_elements
         if multinn:
-            print('Using ensemble')
-            self.nmodel = fname.__len__()
-            options = [My_args('Comp', fnm) for fnm in fname]
-            self.dpes.device = options[0].device
-            self.nn_pes = [pes.prep_model(True, opts, load_opt=False) for opts in options]
+            print('MULTINET!!!')
+            args_list = [My_args(fname[i], mf=mf, present_elements=present_elements) for i in range(len(fname))]
+            #self.nmodel = fname.__len__()
+            self.nn_pes = [pes.Runner(args_list[i], self.device) for i in range(len(fname))]
         else:
-            print('Using single model')
+            args = My_args(fname, mf=mf, present_elements=present_elements)
             self.nmodel = 1
-            options = My_args('Comp', fname)
-            self.dpes.device = options.device
-            self.nn_pes = pes.prep_model(True, options, load_opt=False)
+            self.nn_pes = pes.Runner(args, self.device)
 
     def eval(self, indvout=False):
-        idl = list(range(0, self.dpes.ndat))
-        self.dpes.prep_data(idl)
-        self.dpes.indvout = indvout
-        self.dpes.xb = [[xt.requires_grad_() for xt in self.dpes.xb[b]] for b in range(self.dpes.nbt)]
+        self.dpes.prep_data(device=self.device)
+        self.aevs = [aev[j].requires_grad_() for j in range(len(self.present_elements)) for aev in self.dpes.aevs]
         if self.nmodel == 1:
-            self.E_lf, self.E_hf = self.nn_pes.eval_dl(self.dpes)
-            E_pred = self.E_hf
+            self.E = self.nn_pes.eval(self.dpes.aevs)
+            E_pred = self.E
             return E_pred
         else:
-            self.E_hf = torch.empty((self.dpes.ndat, self.nmodel))
+            self.E = torch.empty((self.dpes.ndat, self.nmodel))
             for i in range(self.nmodel):
-                E_lf, E_hf = self.nn_pes[i].eval_dl(self.dpes)
-                self.E_hf[:, i] = E_hf.reshape(-1)
-            E_pred = torch.mean(self.E_hf)
-            Estd = torch.std(self.E_hf, 1)
-            return E_pred, Estd, self.E_hf
+                E = self.nn_pes[i].eval(self.dpes.aevs)
+                self.E[:, i] = E.reshape(-1)
+            E_pred = torch.mean(self.E)
+            Estd = torch.std(self.E, 1)
+            return E_pred, Estd, self.E
 
-    def evalgrad(self):
+    def eval_force(self):
         if self.nmodel == 1:
-            dEdxyz = daev.cal_dEdxyz_dl(self.dpes, self.E_hf)[0]
-            return dEdxyz
+            forces = self.nn_pes.eval_force(self.dpes.daevs)
+            return forces[0][0]
         else:
-            dEdxyz = torch.empty((self.dpes.ndat, self.nmodel, self.nforce))
+            Forces = torch.empty((self.dpes.ndat, self.nmodel, self.nforce))
             for i in range(self.nmodel):
-                tmp = daev.cal_dEdxyz_dl(self.dpes, self.E_hf[:, i])[0]
-                dEdxyz[:, i] = tmp
-            gmean = torch.mean(dEdxyz, 1).reshape(-1)
-            gstd  = torch.std(dEdxyz, 1).reshape(-1)
-            return gmean, gstd, dEdxyz
+                forces = self.nn_pes[i].eval_force(self.dpes.daevs)
+                Forces[:,i] = forces[0][0]
+            Fmean = torch.mean(Forces, 1).reshape(-1)
+            Fstd  = torch.std(Forces, 1).reshape(-1)
+            return Fmean, Fstd, Forces
 
-    def evalforce(self):
-        if self.nmodel == 1:
-            gradient = self.evalgrad()
-            return -gradient
-        else:
-            gmean, gstd, dEdxyz = self.evalgrad()
-            return -gmean, gstd, -dEdxyz
 

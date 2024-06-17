@@ -13,43 +13,28 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” 
 """
 #=====================================================================================
 
-import torch
-from ase.io import read
-from pykinml import  model_calculator 
-from pykinml.model_calculator import Nn_surr, Nnpes_calc
+import numpy as np
+from ase import Atoms
+from pykinml import model_calculator as mod
 
+nn = 'my_model_0_1/model-0009.pt'
+surr  = mod.Nn_surr(nn, tnsr=True, nrho_rad=16, nrho_ang=8, nalpha=8, R_c=[5.2, 3.8], mf=False, device='cpu')
 
+coord = np.array([[-0.9981252206, -0.2266407005, -0.5827299231],
+                     [-0.9349253557, -0.5805118019, 0.6653986964],
+                     [0.2299383635, 0.7471148235, -0.9671155914],
+                     [0.5032100887, -0.4581358393, 0.8855654072],
+                     [1.1736620945, 0.5548549615, 0.0099222856],
+                     [-1.7749905917, -0.6584807936, -1.2744784327],
+                     [-1.6602525733, -1.2656303199, 1.0401661686],
+                     [2.0469469305, 1.2790772568, 0.5610993450],
+                     [1.1804663131, -1.1761659084, 1.4914759564],
+                     [0.5184324813, 1.3801415798, -1.9407918912]])
 
+spec = ['C', 'C', 'C', 'C', 'C', 'H', 'H', 'H', 'H', 'H']
 
-
-
-# set default pytorch as double precision
-torch.set_default_dtype(torch.float64)
-torch.set_printoptions(precision=12)
-
-
-
-
-e1 = '../ensemble/comp_r0-0150.pt'
-e2 = '../ensemble/comp_r2-0150.pt'
-e3 = '../ensemble/comp_r4-0150.pt'
-e4 = '../ensemble/comp_r6-0150.pt'
-e5 = '../ensemble/comp_r8-0150.pt'
-
-fn_nn = [e1, e2, e3, e4, e5]
-surr  = Nn_surr(fn_nn,tnsr=False, nrho_rad=16, nrho_ang=8, nalpha=8, R_c=[5.2, 3.8])
-    
-mol = read('c5h5.xyz')
-print(mol)
-mol.set_calculator(surr)
-surr.calculate(mol)
-eng = surr.results['energy'].item()
-std = surr.results['energy_std'].item()
-force = surr.results['forces']
-
-print('energy: ', eng)
-print('standard deviation: ', std)
-print('forces: ', force)
-
-
-
+atoms = Atoms(spec, coord)
+atoms.set_calculator(surr)
+surr.calculate(atoms)
+print(surr.results['energy'].item())
+print(surr.results['forces'])

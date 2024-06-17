@@ -19,14 +19,14 @@ import matplotlib.pyplot as plt
 
 from ase import Atoms
 
-from pykinml import data
+#from pykinml import data
 
 verbose = False
 diagnose = False
 
 #====================================================================================================
 class Aev():
-	def __init__(self, atom_types,nrho_rad=32,nrho_ang=8,nalpha=8):
+	def __init__(self, atom_types,nrho_rad=32,nrho_ang=8,nalpha=8, beta=0.95):
 		"""
 		atom_types: list of strings
 			n long list of strings
@@ -260,7 +260,7 @@ class Aev():
 							vik=np.subtract(x[k],x[i])	# x_k - x_i
 							Rij=np.linalg.norm(vij)		# ||x_j-x_i||
 							Rik=np.linalg.norm(vik)		# ||x_k-x_i||
-							theta=np.arccos( np.clip( 0.95*np.dot(vij,vik)/(Rij*Rik), -1.0, 1.0 ) )   # angle theta
+							theta=np.arccos( np.clip( beta*np.dot(vij,vik)/(Rij*Rik), -1.0, 1.0 ) )   # angle theta
 							for l in range(0,nsf):		# loop over angular SFs
 								q = q_offset + kknsf + l
 								par=self.ang_par[l]
@@ -289,6 +289,28 @@ class Aev():
 				print("=====================================================")
 
 		return y
+
+
+class Config(Atoms):
+        """
+        This is a child class, whose parent is the Atom class in ASE
+        It adds methods and data for handling radial and angular
+        index sets for the given configuration necessary for AEV evaluation
+        """
+        def set_index_sets(self,rad,ang):
+                self.radial_index_set=rad
+                self.angular_index_set=ang
+
+        def get_index_sets(self):
+                return self.radial_index_set, self.angular_index_set
+
+        def get_radial_index_set(self):
+                return self.radial_index_set
+
+        def get_angular_index_set(self):
+                return self.angular_index_set
+
+        pass
 
 #====================================================================================================
 # kernel functions for AEV
