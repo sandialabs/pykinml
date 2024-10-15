@@ -26,7 +26,7 @@ import torch
 
 def cal_dEdxyz_ddp(aevs, E, daev, inds):
         dEdxyz = [[] for b in range(E.shape[0])]
-        fa = torch.autograd.grad(outputs=E.sum(), inputs=aevs, create_graph=True)
+        fa = torch.autograd.grad(outputs=E.sum(), inputs=aevs, create_graph=True, allow_unused=True)
         for i in range(E.shape[0]):
                 t1 = timeit.default_timer()
                 dE = torch.zeros((len(daev[0][0][0])), device=E.device)

@@ -50,7 +50,7 @@ class Nn_surr(Calculator):
         self.nalpha = nalpha
         self.R_c = R_c
 
-    def calculate(self, atoms=None, properties=['energy', 'forces'], system_changes=all_changes, args=None):
+    def calculate(self, atoms=None, properties=['energy', 'forces'], system_changes=all_changes, args=None, nlocal=0):
         Calculator.calculate(self, atoms, properties, system_changes)
         if 'forces' in properties:
             favail = True
@@ -59,7 +59,7 @@ class Nn_surr(Calculator):
         if atoms is None:
             atoms = self.atoms
         xyzd = [[[s for s in atoms.symbols], np.array(atoms.positions)]]
-        self.surrogate.dpes.aev_from_xyz(xyzd, self.nrho_rad, self.nrho_ang, self.nalpha, self.R_c, False)
+        self.surrogate.dpes.aev_from_xyz(xyzd, self.nrho_rad, self.nrho_ang, self.nalpha, self.R_c, False, nlocal=nlocal)
         self.surrogate.nforce = self.surrogate.dpes.full_symb_data[0].__len__() * 3
 
         if self.multinn:

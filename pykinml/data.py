@@ -158,7 +158,7 @@ class Data_pes():
         return myaev
 
     # ==============================================================================================
-    def aev_from_xyz(self, xyz_db, nrho_rad=32, nrho_ang=8, nalpha=8, R_c=[4.6, 3.1], pack_n_write=True, myaev=None, nblk=None, meta_db=None, beta=0.95):
+    def aev_from_xyz(self, xyz_db, nrho_rad=32, nrho_ang=8, nalpha=8, R_c=[4.6, 3.1], pack_n_write=True, myaev=None, nblk=None, meta_db=None, beta=0.95, nlocal=0):
         if myaev == None:
 
             # define list of atom types in system
@@ -191,10 +191,10 @@ class Data_pes():
         con = None
 
         # build daev database for available xyz database
-        self.xyz_to_aev_db(xyz_db, nblk, parsed, myaev, tag, con, verbose=False, force=False)
+        self.xyz_to_aev_db(xyz_db, nblk, parsed, myaev, tag, con, verbose=False, force=False, nlocal=nlocal)
 
         try:
-            self.xyz_to_daev_db(xyz_db, nblk, myaev)
+            self.xyz_to_daev_db(xyz_db, nblk, myaev, nlocal=nlocal)
             # print('AEV derivatives were calculated.')
         except:
             pass
@@ -440,7 +440,7 @@ class Data_pes():
 
 
 
-    def xyz_to_daev_db(self, xyz_db, nblk, myaev):
+    def xyz_to_daev_db(self, xyz_db, nblk, myaev, nlocal=0):
         """
         Method to build the derivative of AEV data base for the Data_pes object
         """
@@ -471,7 +471,9 @@ class Data_pes():
         idx.append(nblk)
         for i in range(idx.__len__() - 1):
             symb = xyz_db[idx[i]][0]
-            conf = aevmod.config(symb)
+            if nlocal == 0:
+                nlocal=len(symb)
+            conf = aevmod.config(symb, nlocal)
             for j in range(idx[i], idx[i + 1]):
                 if j == idx[i]:
                     x = np.array([xyz_db[j][1].flatten()])
@@ -544,7 +546,7 @@ class Data_pes():
         #=====================================================
         return
 
-    def xyz_to_aev_db(self, xyz_db, nblk, parsed, myaev, target_theory=None, target_symb=None, force=True, weights=None, verbose=False):
+    def xyz_to_aev_db(self, xyz_db, nblk, parsed, myaev, target_theory=None, target_symb=None, force=True, weights=None, verbose=False, nlocal=0):
         """
 		Method to build the AEV data base for the Data_pes object
 		"""
@@ -571,7 +573,9 @@ class Data_pes():
 
             if aevmodule == 'aevmod':
                 symb = xyz_db[blk][0]
-                conf = aevmod.config(symb)
+                if nlocal == 0:
+                    nlocal=len(symb)
+                conf = aevmod.config(symb, nlocal)
                 x = np.array([xyz_db[blk][1].flatten()])
                 npt = conf.add_structures(x)
                 myaev.build_index_sets(conf)
