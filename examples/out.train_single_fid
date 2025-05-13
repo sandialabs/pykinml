@@ -1,10 +1,10 @@
 preping data
+random seed: 0
 Instantiating PES data object
+len(train_ind):  2048
+prepper.py: prep_dat: tvt mask for testset was set based on the file: ['sample_tvt.txt'].
 Get data
-prepper: calling read_xidtxt with args.trtsid_name[0]: sample_tvt.txt
-prepper: calling get_data with xid length: 2112
-names:  ['data_holder/C5H5.db']
-len(names):  1
+Starting training batch  1 of 41
 extracting data at temp= None
 extracting data for nameset:  None
 Extracting data for delta learning:  False
@@ -12,36 +12,741 @@ parsing SQLite xyz data base data_holder/C5H5.db
 all points with positive temperature will be loaded
 xyz id is preset
 config:  C5H5
-sqldb_parse_xyz: nblk: 2112
-in get_data: nblk: 2112
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
 Building PES AEV data base
+FORCE:  False
 done...
-ndat: 2112
-Generating AEV (min):  0.11576211955398322
-random seed: 0
-prepper.py: prep_dat: Prepare training, validation, and testing data
-prepper.py: prep_dat: tvt mask for testset was set based on the file: ['sample_tvt.txt'].
-self.num_nn:  2
-len(self.full_symb_data):  2112
-self.atom_types:  ['C', 'H']
-max(itr):  2047
-nattr_maxs:  [5, 5]
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  2 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  3 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  4 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  5 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  6 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  7 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  8 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  9 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  10 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  11 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  12 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  13 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  14 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  15 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  16 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  17 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  18 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  19 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  20 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  21 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  22 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  23 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  24 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  25 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  26 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  27 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  28 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  29 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  30 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  31 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  32 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  33 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  34 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  35 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  36 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  37 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  38 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  39 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  40 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 50
+in get_data: nblk: 50
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 50
+keys:  ['aevs', 'engs']
+Starting training batch  41 of 41
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 48
+in get_data: nblk: 48
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 48
+keys:  ['aevs', 'engs']
+len(trfiles):  41
+Starting testing batch  1 of 7
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 10
+in get_data: nblk: 10
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 10
+keys:  ['aevs', 'engs']
+Starting testing batch  2 of 7
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 10
+in get_data: nblk: 10
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 10
+keys:  ['aevs', 'engs']
+Starting testing batch  3 of 7
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 10
+in get_data: nblk: 10
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 10
+keys:  ['aevs', 'engs']
+Starting testing batch  4 of 7
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 10
+in get_data: nblk: 10
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 10
+keys:  ['aevs', 'engs']
+Starting testing batch  5 of 7
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 10
+in get_data: nblk: 10
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 10
+keys:  ['aevs', 'engs']
+Starting testing batch  6 of 7
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 10
+in get_data: nblk: 10
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 10
+keys:  ['aevs', 'engs']
+Starting testing batch  7 of 7
+extracting data at temp= None
+extracting data for nameset:  None
+Extracting data for delta learning:  False
+parsing SQLite xyz data base data_holder/C5H5.db
+all points with positive temperature will be loaded
+xyz id is preset
+config:  C5H5
+sqldb_parse_xyz: nblk: 4
+in get_data: nblk: 4
+Building PES AEV data base
+FORCE:  False
+done...
+ndat: 4
+keys:  ['aevs', 'engs']
+len(tsfiles):  7
 SAE bounds:  ([-1043.30436565, -24.8356588], [-1027.30436565, -8.835658800000001])
 Performing least squares fitting to get SAE values to subtact from energies.
-SAE energies:  [-1035.4398438    -16.97113695]
-min energy:  -1.711258999634083
-max energy:  1.3776371038884463
-Mean of subtracted energies (should be close to 0):  -1.6084911180769268e-12
+SAE energies:  [-6526.69626829  5474.28528652]
+min energy:  -1.7112538782912452
+max energy:  1.377642225231284
+Mean of subtracted energies (should be close to 0):  5.121341229319398e-06
 Range of subtracted energies:  3.0888961035225293
+len(subtracted_energies):  2048
 world_size:  8
 rank:  cpu
 torch.cuda.is_available():  True
 about to load train objects!
 Data random seed:  0
 args.trpath:  my_model_0_1/training1/
-keys:  ['aevs', 'engs']
+training set size:  2000.0
+validatiion set size:  48.0
+cpu
+RANK IN LOAD DATA OBJS:  cpu
 DATA LOADED!
 model random seed: 1
+biases:  False
 activation functions: ['gaussian', 'gaussian', 'gaussian', 'identity']
 lrscheduler:  rop
 net: CompositeNetworks(
@@ -78,116 +783,208 @@ net: CompositeNetworks(
     )
   )
 )
+cpu
+cpu
+cpu
 self.keys:  ['aevs', 'engs']
 
 device  cpu  epoch:  0
-device  cpu   train MAE:  20.726574321919013
-device  cpu   train RMSE:  25.48763832786415
-device  cpu   train Linf:  80.72844286549761
-device  cpu   valid MAE:  16.187555035570877
-device  cpu   valid RMSE:  19.828180429597925
-device  cpu   valid Linf:  36.06335502377861
-device  cpu   test MAE:  27.125322166718142
-device  cpu   test RMSE:  27.17889240731482
-device  cpu   test Linf:  31.245812091170976
+device  cpu   valid MAE:  45.004428387046644
+device  cpu   valid RMSE:  49.723727492132504
+device  cpu   valid Linf:  82.10245411128399
+NEW BEST:  0 tensor(2.1562)
+device  cpu   test MAE:  80.33508963679796
+device  cpu   test RMSE:  80.35280421680851
+device  cpu   test Linf:  84.28026329751977
+device  cpu   train MAE:  20.590463012715436
+device  cpu   train RMSE:  25.38779344614853
+device  cpu   train Linf:  81.87055450243137
+device  cpu   valid MAE:  18.040737795928898
+device  cpu   valid RMSE:  20.993318460451675
+device  cpu   valid Linf:  33.91707745099232
+NEW BEST:  0 tensor(0.9104)
+device  cpu   test MAE:  29.650676258046335
+device  cpu   test RMSE:  29.69964946362659
+device  cpu   test Linf:  33.766288144832245
 
 device  cpu  epoch:  1
-device  cpu   train MAE:  16.227548693206913
-device  cpu   train RMSE:  19.17391988600289
-device  cpu   train Linf:  37.89391600609838
-device  cpu   valid MAE:  13.685592080329918
-device  cpu   valid RMSE:  16.60319444902518
-device  cpu   valid Linf:  30.859592016362953
-device  cpu   test MAE:  25.04968685573324
-device  cpu   test RMSE:  25.113268108515598
-device  cpu   test Linf:  29.944839062169056
+device  cpu   valid MAE:  18.040737795928898
+device  cpu   valid RMSE:  20.993318460451675
+device  cpu   valid Linf:  33.91707745099232
+device  cpu   test MAE:  29.650676258046335
+device  cpu   test RMSE:  29.69964946362659
+device  cpu   test Linf:  33.766288144832245
+device  cpu   train MAE:  16.483801236669958
+device  cpu   train RMSE:  19.483442387866475
+device  cpu   train Linf:  40.22475088746066
+device  cpu   valid MAE:  15.296478078445057
+device  cpu   valid RMSE:  17.68604104801227
+device  cpu   valid Linf:  29.712586074258592
+NEW BEST:  1 tensor(0.7669)
+device  cpu   test MAE:  27.60416123444634
+device  cpu   test RMSE:  27.661180059911594
+device  cpu   test Linf:  32.38744348071254
 
 device  cpu  epoch:  2
-device  cpu   train MAE:  10.492983370691517
-device  cpu   train RMSE:  12.896133429370575
-device  cpu   train Linf:  31.873097367400288
-device  cpu   valid MAE:  6.62386800379244
-device  cpu   valid RMSE:  8.036276916929099
-device  cpu   valid Linf:  20.055529523425044
-device  cpu   test MAE:  11.885124725449396
-device  cpu   test RMSE:  12.057565348756489
-device  cpu   test Linf:  18.46594026154863
+device  cpu   valid MAE:  15.296478078445057
+device  cpu   valid RMSE:  17.68604104801227
+device  cpu   valid Linf:  29.712586074258592
+device  cpu   test MAE:  27.60416123444634
+device  cpu   test RMSE:  27.661180059911594
+device  cpu   test Linf:  32.38744348071254
+device  cpu   train MAE:  11.572865559053033
+device  cpu   train RMSE:  14.098155308801047
+device  cpu   train Linf:  33.25721145720034
+device  cpu   valid MAE:  7.453632593196365
+device  cpu   valid RMSE:  9.228776510712434
+device  cpu   valid Linf:  18.163813298602452
+NEW BEST:  2 tensor(0.4002)
+device  cpu   test MAE:  13.937603923628743
+device  cpu   test RMSE:  14.07609667046641
+device  cpu   test Linf:  20.173701251358477
 
 device  cpu  epoch:  3
-device  cpu   train MAE:  5.105934642671433
-device  cpu   train RMSE:  6.2212520936843925
-device  cpu   train Linf:  18.701708763503984
-device  cpu   valid MAE:  4.721446579935378
-device  cpu   valid RMSE:  5.923239230988643
-device  cpu   valid Linf:  14.598095369318314
-device  cpu   test MAE:  5.427614355654384
-device  cpu   test RMSE:  5.871015674935583
-device  cpu   test Linf:  12.99687887530988
+device  cpu   valid MAE:  7.453632593196365
+device  cpu   valid RMSE:  9.228776510712434
+device  cpu   valid Linf:  18.163813298602452
+device  cpu   test MAE:  13.937603923628743
+device  cpu   test RMSE:  14.07609667046641
+device  cpu   test Linf:  20.173701251358477
+device  cpu   train MAE:  5.368170227150417
+device  cpu   train RMSE:  6.56847687961805
+device  cpu   train Linf:  19.16326039789656
+device  cpu   valid MAE:  4.284484102827773
+device  cpu   valid RMSE:  5.103560628388558
+device  cpu   valid Linf:  10.952228391784272
+NEW BEST:  3 tensor(0.2213)
+device  cpu   test MAE:  7.874782822589967
+device  cpu   test RMSE:  8.177374075084963
+device  cpu   test Linf:  15.310281827358738
 
 device  cpu  epoch:  4
-device  cpu   train MAE:  3.84367930570975
-device  cpu   train RMSE:  4.655157497068437
-device  cpu   train Linf:  13.017071003039483
-device  cpu   valid MAE:  4.165398703843825
-device  cpu   valid RMSE:  5.208855670119838
-device  cpu   valid Linf:  12.636701542473846
-device  cpu   test MAE:  3.6529488395815584
-device  cpu   test RMSE:  4.315699288852844
-device  cpu   test Linf:  11.38236524105199
+device  cpu   valid MAE:  4.284484102827773
+device  cpu   valid RMSE:  5.103560628388558
+device  cpu   valid Linf:  10.952228391784272
+device  cpu   test MAE:  7.874782822589967
+device  cpu   test RMSE:  8.177374075084963
+device  cpu   test Linf:  15.310281827358738
+device  cpu   train MAE:  3.896560908380621
+device  cpu   train RMSE:  4.723934663437303
+device  cpu   train Linf:  13.033211462702464
+device  cpu   valid MAE:  3.876265258804904
+device  cpu   valid RMSE:  4.540379854705521
+device  cpu   valid Linf:  10.256566867192719
+NEW BEST:  4 tensor(0.1969)
+device  cpu   test MAE:  6.073005485521706
+device  cpu   test RMSE:  6.488888474284594
+device  cpu   test Linf:  13.765161263625322
 
 device  cpu  epoch:  5
-device  cpu   train MAE:  3.299051384644642
-device  cpu   train RMSE:  3.964956380591892
-device  cpu   train Linf:  10.16621832593312
-device  cpu   valid MAE:  3.390574644328207
-device  cpu   valid RMSE:  4.249708474036517
-device  cpu   valid Linf:  12.417150747229629
-device  cpu   test MAE:  3.532781527753307
-device  cpu   test RMSE:  4.238375107479762
-device  cpu   test Linf:  11.307381405329146
+device  cpu   valid MAE:  3.876265258804904
+device  cpu   valid RMSE:  4.540379854705521
+device  cpu   valid Linf:  10.256566867192719
+device  cpu   test MAE:  6.073005485521706
+device  cpu   test RMSE:  6.488888474284594
+device  cpu   test Linf:  13.765161263625322
+device  cpu   train MAE:  3.3856948308808543
+device  cpu   train RMSE:  4.106576122635117
+device  cpu   train Linf:  11.89123977561898
+device  cpu   valid MAE:  3.3792388390212134
+device  cpu   valid RMSE:  4.059363731556302
+device  cpu   valid Linf:  9.828284810746238
+NEW BEST:  5 tensor(0.1760)
+device  cpu   test MAE:  5.116989814002758
+device  cpu   test RMSE:  5.626260130687761
+device  cpu   test Linf:  12.87453292466807
 
 device  cpu  epoch:  6
-device  cpu   train MAE:  2.927764642101468
-device  cpu   train RMSE:  3.53655669799592
-device  cpu   train Linf:  9.294075520653838
-device  cpu   valid MAE:  2.850507159248332
-device  cpu   valid RMSE:  3.6700405010385757
-device  cpu   valid Linf:  12.353004790015431
-device  cpu   test MAE:  3.4749923537461505
-device  cpu   test RMSE:  4.206621660702384
-device  cpu   test Linf:  11.23366040370723
+device  cpu   valid MAE:  3.3792388390212134
+device  cpu   valid RMSE:  4.059363731556302
+device  cpu   valid Linf:  9.828284810746238
+device  cpu   test MAE:  5.116989814002758
+device  cpu   test RMSE:  5.626260130687761
+device  cpu   test Linf:  12.87453292466807
+device  cpu   train MAE:  3.0196431919333615
+device  cpu   train RMSE:  3.6919301098985478
+device  cpu   train Linf:  11.33576581623517
+device  cpu   valid MAE:  2.901816672684774
+device  cpu   valid RMSE:  3.5999579456411084
+device  cpu   valid Linf:  9.334853851269958
+NEW BEST:  6 tensor(0.1561)
+device  cpu   test MAE:  4.2502851111704985
+device  cpu   test RMSE:  4.8684127051632675
+device  cpu   test Linf:  12.007466397666459
 
 device  cpu  epoch:  7
-device  cpu   train MAE:  2.6541769993830093
-device  cpu   train RMSE:  3.2319490521710783
-device  cpu   train Linf:  9.236239313790497
-device  cpu   valid MAE:  2.4952645437853835
-device  cpu   valid RMSE:  3.341311789915416
-device  cpu   valid Linf:  12.238959292364942
-device  cpu   test MAE:  3.3492712034465795
-device  cpu   test RMSE:  4.110829541837623
-device  cpu   test Linf:  11.046346954321857
+device  cpu   valid MAE:  2.901816672684774
+device  cpu   valid RMSE:  3.5999579456411084
+device  cpu   valid Linf:  9.334853851269958
+device  cpu   test MAE:  4.2502851111704985
+device  cpu   test RMSE:  4.8684127051632675
+device  cpu   test Linf:  12.007466397666459
+device  cpu   train MAE:  2.7370069255910505
+device  cpu   train RMSE:  3.3731262669318984
+device  cpu   train Linf:  11.291853886599608
+device  cpu   valid MAE:  2.499840311545427
+device  cpu   valid RMSE:  3.170530462303031
+device  cpu   valid Linf:  8.600072550015842
+NEW BEST:  7 tensor(0.1375)
+device  cpu   test MAE:  3.484315506839098
+device  cpu   test RMSE:  4.224862822231796
+device  cpu   test Linf:  11.189523304117644
 
 device  cpu  epoch:  8
-device  cpu   train MAE:  2.4293198314301
-device  cpu   train RMSE:  2.9932354844178986
-device  cpu   train Linf:  8.9544239666881
-device  cpu   valid MAE:  2.317605611015746
-device  cpu   valid RMSE:  3.1342905303769366
-device  cpu   valid Linf:  11.761597539693454
-device  cpu   test MAE:  2.8828791723868026
-device  cpu   test RMSE:  3.728893014468436
-device  cpu   test Linf:  10.479531924611354
+device  cpu   valid MAE:  2.499840311545427
+device  cpu   valid RMSE:  3.170530462303031
+device  cpu   valid Linf:  8.600072550015842
+device  cpu   test MAE:  3.484315506839098
+device  cpu   test RMSE:  4.224862822231796
+device  cpu   test Linf:  11.189523304117644
+device  cpu   train MAE:  2.506281315573582
+device  cpu   train RMSE:  3.1034233677353784
+device  cpu   train Linf:  11.50111394949813
+device  cpu   valid MAE:  2.1946216265022396
+device  cpu   valid RMSE:  2.8396144237913177
+device  cpu   valid Linf:  7.757570621576034
+NEW BEST:  8 tensor(0.1231)
+device  cpu   test MAE:  2.8258248303822118
+device  cpu   test RMSE:  3.6827076357403734
+device  cpu   test Linf:  10.427005278194105
 
 device  cpu  epoch:  9
-device  cpu   train MAE:  2.254887688509485
-device  cpu   train RMSE:  2.806921764236639
-device  cpu   train Linf:  8.474661227205905
-device  cpu   valid MAE:  2.1215338525041716
-device  cpu   valid RMSE:  2.9639233807501313
-device  cpu   valid Linf:  11.623192216905528
-device  cpu   test MAE:  2.7824145699780307
-device  cpu   test RMSE:  3.637097541310908
-device  cpu   test Linf:  10.262921542371787
+device  cpu   valid MAE:  2.1946216265022396
+device  cpu   valid RMSE:  2.8396144237913177
+device  cpu   valid Linf:  7.757570621576034
+device  cpu   test MAE:  2.8258248303822118
+device  cpu   test RMSE:  3.6827076357403734
+device  cpu   test Linf:  10.427005278194105
+device  cpu   train MAE:  2.311804103080161
+device  cpu   train RMSE:  2.8764185614902917
+device  cpu   train Linf:  11.63041962933481
+device  cpu   valid MAE:  2.0387269678667153
+device  cpu   valid RMSE:  2.623108767629023
+device  cpu   valid Linf:  7.115189837998346
+NEW BEST:  9 tensor(0.1137)
+device  cpu   test MAE:  2.5356812777453217
+device  cpu   test RMSE:  3.3893942478639643
+device  cpu   test Linf:  9.942101467754037
+
+device  cpu  epoch:  10
+device  cpu   valid MAE:  2.0387269678667153
+device  cpu   valid RMSE:  2.623108767629023
+device  cpu   valid Linf:  7.115189837998346
+device  cpu   test MAE:  2.5356812777453217
+device  cpu   test RMSE:  3.3893942478639643
+device  cpu   test Linf:  9.942101467754037
+device  cpu   train MAE:  2.1740762437632197
+device  cpu   train RMSE:  2.721335958930936
+device  cpu   train Linf:  11.585248056078958
+device  cpu   valid MAE:  1.915090944925951
+device  cpu   valid RMSE:  2.454430042131806
+device  cpu   valid Linf:  6.66580365094592
+NEW BEST:  10 tensor(0.1064)
+device  cpu   test MAE:  2.4318376458383684
+device  cpu   test RMSE:  3.273653136674994
+device  cpu   test Linf:  9.689592912892204
 device Number  cpu is DONE!!!
-Time it took:  34.4335515499115
+Time it took:  9.515212774276733

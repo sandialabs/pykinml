@@ -29,7 +29,7 @@ args = prep.parse_arguments_list()
 First, decide how many epochs you want to train
 and how often to save the model.
 """
-args.epochs = 10
+args.epochs = 2
 args.save_every = 1
 
 """
@@ -47,7 +47,7 @@ has already been saved.
 args.savenm = 'phase_two'
 args.data_path = 'my_model_0_1/'
 args.load_model = True
-args.load_model_name = 'my_model_0_1/model-0009.pt'
+args.load_model_name = 'my_model_0_1/model-0008.pt'
 args.load_opt = True
 args.pre_saved = True
 

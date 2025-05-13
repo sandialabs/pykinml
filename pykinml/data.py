@@ -29,6 +29,7 @@ from ase import Atoms
 
 from pykinml import aev
 from pykinml import rdb
+from pykinml import prepper as prep
 try:
     import aevmod
 except ModuleNotFoundError:
@@ -44,16 +45,29 @@ home = Path.home()
 
 
 # ====================================================================================================
+
+nums = {
+        'H':1,
+        'C':0,
+        'O':2
+        }
+
+def spec_to_ten(species):
+    spec_ten = []
+    for i in species:
+        spec_ten.append(nums[i])
+    return torch.tensor(spec_ten)
+
+def chunk_array(arr, chunk_size):
+    return [arr[i:i + chunk_size] for i in range(0, len(arr), chunk_size)]
+
+
 def parse_meta_db(meta_db):
     nblk = len(meta_db)
     meta_parsed = []
     for blk in range(0, nblk):
         meta_parsed.append(parse_meta(meta_db[blk]))
-        #print('in parse_meta_db: meta_parsed:',meta_parsed[0])
-        #sys.exit('debug exit')
     return meta_parsed
-
-
 
 
 
@@ -158,7 +172,7 @@ class Data_pes():
         return myaev
 
     # ==============================================================================================
-    def aev_from_xyz(self, xyz_db, nrho_rad=32, nrho_ang=8, nalpha=8, R_c=[4.6, 3.1], pack_n_write=True, myaev=None, nblk=None, meta_db=None, beta=0.95):
+    def aev_from_xyz(self, xyz_db, nrho_rad=32, nrho_ang=8, nalpha=8, R_c=[4.6, 3.1], pack_n_write=True, myaev=None, nblk=None, meta_db=None, beta=0.95, nlocal=0):
         if myaev == None:
 
             # define list of atom types in system
@@ -191,10 +205,9 @@ class Data_pes():
         con = None
 
         # build daev database for available xyz database
-        self.xyz_to_aev_db(xyz_db, nblk, parsed, myaev, tag, con, verbose=False, force=False)
-
+        self.xyz_to_aev_db(xyz_db, nblk, parsed, myaev, tag, con, verbose=False, force=False, nlocal=nlocal)
         try:
-            self.xyz_to_daev_db(xyz_db, nblk, myaev)
+            self.xyz_to_daev_db(xyz_db, nblk, myaev, nlocal=nlocal)
             # print('AEV derivatives were calculated.')
         except:
             pass
@@ -231,7 +244,7 @@ class Data_pes():
         elif args.input_data_type == 'sqlite':
             # define list of atom types in system
             atom_types = args.present_elements
-
+            self.num_spec = len(args.present_elements)
             # set values for radial and angular symmetry function parameters
 
             nrho_rad = args.aev_params[0]  # number of radial shells in the radial AEV
@@ -239,14 +252,19 @@ class Data_pes():
             nalpha = args.aev_params[2]    # number of angular wedges dividing [0,pi] in the angular AEV
             R_c = args.cuttoff_radius
             # instantiate AEV for given atom types, for given
-            try:
-                import aevmod
-                myaev = aevmod.aev(atom_types, nrho_rad, nrho_ang, nalpha, R_c, beta=args.beta)
-            except:
-                myaev = aev.Aev(atom_types, nrho_rad, nrho_ang, nalpha, R_c)
-                # set the dimension of the data vector being the input for each NN in the system
-                self.dimdat = myaev.dout
-                print("Constructed aev, output dimensionality is:", myaev.dout)
+            
+           # try:
+            if args.module =='torchani':
+                myaev = tam.AEVComputer(R_c[0], R_c[1], nrho_rad, nrho_ang, nalpha, num_species=len(atom_types), beta=args.beta)
+            else:
+                try:
+                    import aevmod
+                    myaev = aevmod.aev(atom_types, nrho_rad, nrho_ang, nalpha, R_c, beta=args.beta)
+                except:
+                    myaev = aev.Aev(atom_types, nrho_rad, nrho_ang, nalpha, R_c)
+                    # set the dimension of the data vector being the input for each NN in the system
+                    self.dimdat = myaev.dout
+                    print("Constructed aev, output dimensionality is:", myaev.dout)
 
             # init data class with list of atom types in system
             self.initialize(atom_types)
@@ -255,8 +273,8 @@ class Data_pes():
 
             # read SQLite data base file 
             names = glob.glob(args.input_data_fname)
-            print('names: ', names)
-            print('len(names): ', len(names))
+            #print('names: ', names)
+            #print('len(names): ', len(names))
             try:
                 print('extracting data at temp=', args.temp)
             except:
@@ -294,16 +312,20 @@ class Data_pes():
                         xid_sep = xid
                 except:
                     xid_sep = xid
-                xyz_db, nblk, meta_db = sqldb_parse_xyz(args.input_data_fname, fid=fid,
+                xyz_db, nblk, meta_db = sqldb_parse_xyz(names[0], fid=fid,
                                                         nameset=args.nameset, xid=xid_sep, temp=args.temp, sort_ids=args.delta)
                 if args.delta:
-                    xyz_db_lf, nblk_lf, meta_db_lf = sqldb_parse_xyz(args.input_data_fname, fid=args.fidlevel_lf,
+                    xyz_db_lf, nblk_lf, meta_db_lf = sqldb_parse_xyz(names[0], fid=args.fidlevel_lf,
                                                         nameset=args.nameset, xid=xid_sep, temp=args.temp, sort_ids=args.delta)
+                #xyz_db, nblk, meta_db = sqldb_parse_xyz(args.input_data_fname, fid=fid,
+                #                                        nameset=args.nameset, xid=xid_sep, temp=args.temp, sort_ids=args.delta)
+                #if args.delta:
+                #    xyz_db_lf, nblk_lf, meta_db_lf = sqldb_parse_xyz(args.input_data_fname, fid=args.fidlevel_lf,
+                #                                        nameset=args.nameset, xid=xid_sep, temp=args.temp, sort_ids=args.delta)
                     if args.delta:
                         for i in range(len(meta_db[-1])):
                             meta_db[-1][i] -= meta_db_lf[-1][i]
                             meta_db[-2][i] -= meta_db_lf[-2][i]
-
 
             print('in get_data: nblk:', nblk)
             parsed = parse_meta_db(meta_db)
@@ -321,12 +343,13 @@ class Data_pes():
             self.xyz_to_aev_db(xyz_db, nblk, parsed, myaev, tag, con, force=force, weights=weights, verbose=False)
         else:
             self.get_xdat(xyz_db, nblk,  parsed, force=force)
+        print('FORCE: ', force)
         if force:
-            try:
+            #try:
                 print('Building derivative of AEV data base')
                 self.xyz_to_daev_db(xyz_db, nblk, myaev)
-            except:
-                print('AEV derivatives were not calculated. Please check if aevmod is available.')
+            #except:
+            #    print('AEV derivatives were not calculated. Please check if aevmod is available.')
 
 
         print("done...")
@@ -440,7 +463,7 @@ class Data_pes():
 
 
 
-    def xyz_to_daev_db(self, xyz_db, nblk, myaev):
+    def xyz_to_daev_db(self, xyz_db, nblk, myaev, nlocal=0):
         """
         Method to build the derivative of AEV data base for the Data_pes object
         """
@@ -449,11 +472,13 @@ class Data_pes():
         aevmodule = myaev.__class__.__module__
         #print('aev module:', aevmodule)
 
-        if aevmodule != 'aevmod':
-            print('No aevmod')
-            print('aevmod module requires for Jacobian calculation')
-            sys.exit()
+        #if aevmodule != 'aevmod':
+        #    print('No aevmod')
+        #    print('aevmod module requires for Jacobian calculation')
+        #    sys.exit()
 
+        
+        nlocal_in=nlocal
         # J_C = []
         # J_H = []
         J_tot = []
@@ -469,46 +494,55 @@ class Data_pes():
                 prev_symb = symb
 
         idx.append(nblk)
-        for i in range(idx.__len__() - 1):
-            symb = xyz_db[idx[i]][0]
-            conf = aevmod.config(symb)
-            for j in range(idx[i], idx[i + 1]):
-                if j == idx[i]:
-                    x = np.array([xyz_db[j][1].flatten()])
-                else:
-                    x_new = np.array([xyz_db[j][1].flatten()])
-                    x = np.concatenate((x, x_new))
-
-            npt = conf.add_structures(x)
-            myaev.build_index_sets(conf)
-            J = np.array(myaev.eval_Jac(conf))
-
-            # idx_C = [a == 'C' for a in symb]
-            for k in range(0, npt):
-                J_tot.append(J[k])
-
-
         self.ndat = nblk
         self.dxdat = np.empty([self.ndat, self.num_nn], dtype=object)
-
-        for i in range(0, self.ndat):
-            dxdatnn = [[]] * self.num_nn
-            for j, s in enumerate(self.full_symb_data_daev[i]):
-                k = self.atom_types.index(s)
-                d = J_tot[i][j].tolist()
-                
-                dxdatnn[k] = dxdatnn[k] + [d]
-
-            for k in range(0, self.num_nn):
-                self.dxdat[i][k] = dxdatnn[k]
         
+        tcount = 0
+        if aevmodule == 'aevmod':
+            for i in range(idx.__len__() - 1):
+                symb = xyz_db[idx[i]][0]
+                if nlocal == 0:
+                    nlocal_in=len(symb)
+                else:
+                    nlocal_in=nlocal
+                tot_for_this_conf = idx[i + 1] - idx[i]
+                for j in range(idx[i], idx[i + 1]):
+                    if j == idx[i]:
+                        x = np.array([xyz_db[j][1].flatten()], dtype=np.float64)
+                    else:
+                        x_new = np.array([xyz_db[j][1].flatten()], dtype=np.float64)
+                        x = np.concatenate((x, x_new))
+                chunked_x = chunk_array(x, 1)
+                for chunk in range(len(chunked_x)):
+                    conf = aevmod.config(symb, nlocal_in)
+                    npt = conf.add_structures(chunked_x[chunk])
+                    myaev.build_index_sets(conf)
+                    J = np.array(myaev.eval_Jac(conf), dtype=np.float64)
+                    for atom in range(len(J)):
+                        for j, s in enumerate(self.full_symb_data_daev[tcount]):
+                            k = self.atom_types.index(s) 
+                            try:
+                                self.dxdat[tcount][k] = self.dxdat[tcount][k] + [J[atom][j]]
+                            except:
+                                self.dxdat[tcount][k] = [J[atom][j]]
+                        tcount +=1
+        elif 'tam_aev' in aevmodule:
+            for i in range(len(self.full_aev_data)):
+                ja = []
+                x = xyz_db[i][1]
+                for j in range(len(self.full_aev_data[i])):
+                    j_atom = []
+                    for k in range(len(self.full_aev_data[i][j])):
+                        daevdxyz = torch.flatten(torch.autograd.grad(self.full_aev_data[i][j][k], x, allow_unused=True, retain_graph=True)[0])
+                        j_atom.append(daevdxyz)
+                    ja.append(j_atom)
+                J_tot.append(ja)
         #=====================================================
         d0 = len(self.dxdat)
         d1 = []
         d2 = []
         d3 = []
         d4 = []
-        #print('padding dxdat')
         for i in range(len(self.dxdat)):
             d1.append(len(self.dxdat[i]))
             for j in range(len(self.dxdat[i])):
@@ -518,8 +552,7 @@ class Data_pes():
                     for v in range(len(self.dxdat[i][j][k])):
                         d4.append(len(self.dxdat[i][j][k][v]))
 
-        
-        self.padded_dxdat = np.zeros((d0, max(d1), max(d2), max(d3), max(d4)))
+        self.padded_dxdat = np.zeros((d0, max(d1), max(d2), max(d3), max(d4)), dtype=np.float64)
         for i in range(len(self.dxdat)):
             for j in range(len(self.dxdat[i])):
                 for k in range(len(self.dxdat[i][j])):
@@ -529,14 +562,12 @@ class Data_pes():
         d0 = len(self.fdat)
         d1 = []
         d2 = []
-        print('padding fdat!')
-        print(d0)
         for i in range(len(self.fdat)):
             d1.append(len(self.fdat[i]))
             for j in range(len(self.fdat[i])):
                 d2.append(len(self.fdat[i][j]))
         self.fd2 = d2
-        self.padded_fdat = np.zeros((d0, max(d1), max(d2)))
+        self.padded_fdat = np.zeros((d0, max(d1), max(d2)), dtype=np.float64)
         for i in range(len(self.fdat)):
             for j in range(len(self.fdat[i])):
                 self.padded_fdat[i][j][:len(self.fdat[i][j])] = self.fdat[i][j]
@@ -544,12 +575,14 @@ class Data_pes():
         #=====================================================
         return
 
-    def xyz_to_aev_db(self, xyz_db, nblk, parsed, myaev, target_theory=None, target_symb=None, force=True, weights=None, verbose=False):
+
+
+    def xyz_to_aev_db(self, xyz_db, nblk, parsed, myaev, target_theory=None, target_symb=None, force=True, weights=None, verbose=False, nlocal=0):
         """
 		Method to build the AEV data base for the Data_pes object
 		"""
         aevmodule = myaev.__class__.__module__
-
+        #print('aevmodule', aevmodule)
         full_aev_data = []
         full_energy_data = []
         if force:
@@ -559,7 +592,9 @@ class Data_pes():
         self.meta = []
 
         self.ndat = 0
+        #print('nblk: ', nblk)
         for blk in range(0, nblk):
+            nlocal_to_mod=nlocal
             if target_theory:
                 if parsed[blk][2] != target_theory:
                     continue
@@ -568,10 +603,13 @@ class Data_pes():
                     continue
 
             energy = parsed[blk][0]   # HNN 7/31/22: changed from: parsed[blk][-1]
-
+            #label = parsed[blk][6]
             if aevmodule == 'aevmod':
                 symb = xyz_db[blk][0]
-                conf = aevmod.config(symb)
+                if nlocal == 0:
+                    nlocal_to_mod=len(symb)
+                conf = aevmod.config(symb, nlocal_to_mod)
+                #print('len(xyz_db[blk][1]): ', len(xyz_db[blk][1]))
                 x = np.array([xyz_db[blk][1].flatten()])
                 npt = conf.add_structures(x)
                 myaev.build_index_sets(conf)
@@ -594,18 +632,32 @@ class Data_pes():
                 conf.set_index_sets(*myaev.bld_index_sets(symb))
                 y = myaev.eval(symb, *conf.get_index_sets(), x)[0]  # evaluate AEV
 
+            
+            elif 'tam_aev' in aevmodule:
+                symb = xyz_db[blk][0]
+                #print(xyz_db[blk])
+                tspecies = spec_to_ten(symb).unsqueeze(0)
+                xyz_db[blk][1] = torch.tensor([xyz_db[blk][1]], requires_grad = True)
+                x = xyz_db[blk][1]#.unsqueeze(0)
+                
+                ss, aevs  = myaev.forward((tspecies, x)) 
+                y=[]
+                for i in range(len(aevs[0])):
+                    y.append(aevs[0][i])
             full_aev_data.append(y)
             #print('full_aev_data: ', full_aev_data)
             full_energy_data.append(energy)
             if force:
                 full_force_data.append(parsed[blk][-1].flatten())   # HNN 7/31/22: changed from full_force_data.append(parsed[blk][-2].flatten()) 
-            self.full_symb_data.append(symb)
+            self.full_symb_data.append(symb[:nlocal_to_mod])
             self.ndat = self.ndat + 1
-            self.pdat.append(np.reshape(x, (-1, 3)))
+            if 'tam_aev' in aevmodule:
+                self.pdat.append(torch.reshape(x, (-1, 3)))
+                self.dimdat = full_aev_data[0][0].shape[-1]
+            else:
+                self.pdat.append(np.reshape(x, (-1, 3)))
+                self.dimdat = full_aev_data[0].shape[-1]
             self.meta.append(parsed[blk])
-
-
-        self.dimdat = full_aev_data[0].shape[-1]
 
 
         # ==========================================================================================
@@ -678,11 +730,12 @@ class Data_pes():
         self.xdat = np.empty([self.ndat, self.num_nn + 1], dtype=object)
         if force:
             self.fdat = np.empty([self.ndat, 1], dtype='float64').tolist()
-
+        self.full_aev_data = full_aev_data
         for i in range(0, self.ndat):
             xdatnn = [[]] * self.num_nn
             for j, s in enumerate(self.full_symb_data[i]):
                 k = self.atom_types.index(s)
+                
                 d = full_aev_data[i][j].tolist()
                 xdatnn[k] = xdatnn[k] + [d]
 
@@ -696,8 +749,8 @@ class Data_pes():
         #self.ntrdat = self.ndat
         #self.nvldat = 0
         #self.ntsdat = 0
-
-
+        #print('len(self.meta): ', len(self.meta))
+        #print('self.ndat: ', self.ndat)
         return
 
 
@@ -746,22 +799,17 @@ class Data_pes():
 
 
 
-    def prep_training_data(self, train_ind, bpath=None, with_aev_data=True):
+    def prep_training_data(self, train_ind, bpath=None, with_aev_data=True, with_force_data=False, batch_num='0'):
         """
                 Method to prepare training data by packaging it appropriately for NN batch computations
                 """
 
-        itr = [i for i in range(len(self.md)) if self.md[i] in train_ind]
-
-        print('self.num_nn: ', self.num_nn)
-        print('len(self.full_symb_data): ', len(self.full_symb_data))
-        print('self.atom_types: ', self.atom_types)
-        print('max(itr): ', max(itr))
+        itr = [i for i in range(len(train_ind))]
+        tri = [i for i in train_ind]
         self.nattr = [[self.full_symb_data[itr[i]].count(self.atom_types[t]) for i in range(len(itr))] for t in
                       range(self.num_nn)]
 
         nattr_maxs = [max(i) for i in self.nattr]
-        print('nattr_maxs: ', nattr_maxs)
 
 
 
@@ -769,19 +817,21 @@ class Data_pes():
 
         self.train_aevs = [[[] for j in range(self.num_nn)] for i in range(len(itr))]
         self.train_engs = [[] for i in range(len(itr))]
-
+        #print('len(self.train_engs): ', len(self.train_engs))
 
         for i in range(len(itr)):
             if with_aev_data:
                 for j in range(self.num_nn):
                     self.train_aevs[i][j] = torch.tensor(self.xdat[itr[i]][j])
+
             self.train_engs[i] = torch.tensor(self.xdat[itr[i]][-1])
-        torch.save(self.train_engs, bpath+'train_engs')
+        #torch.save(self.train_engs, bpath+'train_engs'+batch_num)
+
         if with_aev_data:
-            torch.save(self.train_aevs, bpath+'train_aevs')
+            #torch.save(self.train_aevs, bpath+'train_aevs'+batch_num)
             torch.save(self.dimdat, bpath+'aev_length')
 
-        try:
+        if with_force_data:
             self.train_daevs = [[[] for j in range(self.num_nn)] for i in range(len(itr))]
             self.train_forces = [[] for i in range(len(itr))]
             self.train_fdims = [[] for i in range(len(itr))]
@@ -791,18 +841,37 @@ class Data_pes():
                         self.train_daevs[i][j] = torch.tensor([self.padded_dxdat[itr[i]][j][k] for k in range(nattr_maxs[j])])
                 self.train_forces[i] = torch.tensor([self.padded_fdat[itr[i]][0]])
                 self.train_fdims[i] = len(self.fdat[itr[i]][0])
-            if with_aev_data:
-                torch.save(self.train_daevs, bpath+'train_daevs')
-                del self.train_daevs
-            torch.save(self.train_forces, bpath+'train_forces')
-            torch.save(self.train_fdims, bpath+'train_fdims')
-            #del self.train_daevs
-            del self.train_forces
-            del self.train_fdims
-        except:
-            pass
+            #if with_aev_data:
+                #torch.save(self.train_daevs, bpath+'train_daevs'+batch_num)
 
-        return 0
+                #del self.train_daevs
+            #torch.save(self.train_forces, bpath+'train_forces'+batch_num)
+            #torch.save(self.train_fdims, bpath+'train_fdims'+batch_num)
+            #del self.train_forces
+            #del self.train_fdims
+        
+        if with_force_data:
+            train_stuff = prep.MyTrainDataset(size=len(self.train_engs), aevs=self.train_aevs, forces=self.train_forces, daevs=self.train_daevs, fdims = self.train_fdims, engs=self.train_engs)
+        else:
+            train_stuff = prep.MyTrainDataset(size=len(self.train_engs), aevs=self.train_aevs, engs=self.train_engs)
+
+        #print(train_stuff)
+        keys = []
+        for key in train_stuff.data_dict:
+            keys.append(key)
+        print('keys: ', keys)
+        batched = []
+        for i in range(len(keys)):
+            if keys[i] == 'aevs':
+                cat_batch, ids, nmols = prep.cat_data(train_stuff, keys[i], i, self.num_spec)
+                batched.append(cat_batch)
+                batched.append(ids)
+                batched.append(nmols)
+            else:
+                cat_batch = prep.cat_data(train_stuff, keys[i], i, self.num_spec)
+                batched.append(cat_batch)
+        torch.save(keys, bpath + 'keys')
+        return batched
 
 
 
@@ -934,7 +1003,6 @@ def sqldb_parse_xyz(name, fid=None, nameset=None, xid=None, ethsd=None, temp=Non
                 xid = [x.split('/')[-1] for x in xid]
         except:
             pass
-
     config = name.split('/')[-1].split('.')[0]
     print('config: ', config)
     atom = Atoms(config)
@@ -1096,7 +1164,9 @@ def sqldb_parse_xyz(name, fid=None, nameset=None, xid=None, ethsd=None, temp=Non
                     for r in record:
                         xyz_db.append([symb, np.array(r['geom'])])
                         #meta_db.append([r['id'], r['name'], r['calc'], r['calc_params'], r['Force'], r['E']])
-                        meta_db.append([r['id'], r['name'], 0, np.array([['label', '{}/{}'.format(config, r['id'])]], dtype='<U12'), r['Force'], r['E']])
+                        #### THIS ONE
+                        meta_db.append([r['id'], r['name'], 0, np.array([['label', '{}/{}'.format(config, r['id'])]]), r['Force'], r['E']])
+                        #meta_db.append([r['id'], r['name'], 0, np.array([['label', '{}/{}'.format(config, r['id'])]], dtype='<U12'), r['Force'], r['E']])
                 else:
                     if temp is None:
                         sql_query = f'SELECT xyz.geom, xyz.name, xyz.id FROM xyz WHERE xyz.id IN (' + ','.join(
@@ -1117,7 +1187,6 @@ def sqldb_parse_xyz(name, fid=None, nameset=None, xid=None, ethsd=None, temp=Non
                              0])
     blk = len(xyz_db)
     print('sqldb_parse_xyz: nblk:', blk)
-
     if sort_ids:
         print('sorting by ids')
         ids = np.array([i[0] for i in meta_db])
@@ -1125,7 +1194,6 @@ def sqldb_parse_xyz(name, fid=None, nameset=None, xid=None, ethsd=None, temp=Non
         xyz_db = [xyz_db[i] for i in indx_sort]
         meta_db = [meta_db[i] for i in indx_sort]#meta_db[indx_sort]
     
-
     return xyz_db, blk, meta_db
 
 

@@ -34,7 +34,7 @@ args = prep.parse_arguments_list()
 First, decide how many epochs you want to train
 and how often to save the model.
 """
-args.epochs = 10
+args.epochs = 11
 args.save_every = 1
 
 """
@@ -58,7 +58,7 @@ nrho_rad = 16  # number of radial shells in the radial AEV
 nrho_ang = 8  # number of radial shells in the angular AEV
 nalpha = 8  # number of angular wedges dividing [0,pi] in the angular AEV
 args.aev_params = [nrho_rad, nrho_ang, nalpha]
-
+#args.optimizer=['SGD']
 """
 Now lets look at the input data. pyKinML reads data directly from 
 sql files, such as the one in data_holder.
@@ -74,7 +74,6 @@ args.input_data_type = 'sqlite'
 args.trtsid_name = ["sample_tvt.txt"]
 args.fidlevel = 1
 args.pre_saved=False
-
 """
 Next let's decide how many points to use for training, validation, and testing. 
 In sample_tvt, 2048 structures have a 2 next to them. Those points are set
@@ -125,7 +124,7 @@ allows for repriducibility.
 
 args.randomseed = [0, 1]    #Set the random seeds for initial model parameters and data shuffling. Good for reproducibility
 args.savenm = 'my_model_'+str(args.randomseed[0]) + '_'+str(args.randomseed[1])
-
+args.data_path = args.savenm
 """
 Finally, we set ddp (Distributed Data Parallel) to True or False
 If True, training will be performed on the gpus with indexes 
