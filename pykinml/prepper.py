@@ -40,10 +40,10 @@ from torchvision import transforms
 
 from pykinml import data
 from pykinml import nnpes
-
+import shutil
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-
+torch.set_default_dtype(torch.float64)
 
 
 # ====================================================================================================
@@ -87,7 +87,7 @@ def parse_arguments_list():
                         help='Specify learning rate scheduler decay rate. default = 0.1')
     parser.add_argument('-lrp', '--LR_patience', type=float, default=25,
                         help='patience for rop lr scheduler. default = 25')
-    parser.add_argument('-lrt', '--LR_threshold', type=float, default=0.05,
+    parser.add_argument('-lrt', '--LR_threshold', type=float, default=0.02,
                         help='validation error threshold for rop lr scheduler. default = 0.05 kcal/mol')
     parser.add_argument('-m', '--momentum', type=float, default=0.5, help='specify optimizer momentum [0.5]')
     parser.add_argument('--weight-decay', type=float, default=0, help='specify L2-penalty for regularization')
@@ -147,12 +147,18 @@ def parse_arguments_list():
     parser.add_argument('-aev', '--aev_params', type=int, nargs='+',  default=[16, 8, 8],
                         help='parameters determining the length of the AEV')
 
+    parser.add_argument('-mod', '--module', type=str,  default='aevmod',
+                        help='aevmodule to use')
     args = parser.parse_args()
 
 
 
     return args
 
+
+
+def chunk_array(arr, chunk_size):
+    return [arr[i:i + chunk_size] for i in range(0, len(arr), chunk_size)]
 
 
 def kcpm(E_eV):
@@ -162,14 +168,14 @@ def kcpm(E_eV):
     return E_eV * mol / kcal
 
 
-def my_loss(ediff, fdiff = [], dEsq=1., dfsq=1., p=2):
+def my_loss(ediff, fdiff = [], natoms=[],  fw=1.0, sw=1.0, dE=1., dF=1., p=2):
     """
     loss function used during training
     Inputs:
         ediff: absolute difference between predicted and target energies.
         fdiff: absolute difference between predicted and target forces. Empty if not performing force training.
-        dEsq: scaling factor for energy loss.
-        dfsq: scaling factor for force loss
+        dE: scaling factor to normalize energy loss.
+        dF: scaling factor to normalize force loss
         p: power to raise total loss. E.g. p=1 return L1 loss, p=2 returns L2 loss.
     
     Output:
@@ -178,16 +184,29 @@ def my_loss(ediff, fdiff = [], dEsq=1., dfsq=1., p=2):
     """
     
     ls_f = 0.
-    ls_e = torch.mean(ediff ** p)/dEsq
+    #ls_e = torch.mean((ediff/natoms) ** p)/dE
+    ls_e = torch.mean((ediff) ** p)/dE
+
+
+    if sw==1.0:
+        sw=[1.0]*len(fdiff)
+    if fw==1.0:
+        fw=[1.0]*len(fdiff)
+    #print('fdiff: ', fdiff)
+    #print(len(fw[0]), len(fdiff[0]))
     for i in range(len(fdiff)):
-        ls_f += torch.mean(fdiff[i] ** p)
-    ls_f = ls_f/len(ediff)/dfsq
+        #ls_f = ls_f + torch.mean((fdiff[i]*fw[i]) ** p)
+        ls_f = ls_f + torch.mean((fdiff[i]*fw[i]*sw[i]) ** 2.0)
+        #ls_f = ls_f + torch.mean((fdiff[i] ** p) * fw[i])
+    ls_f = ls_f/len(ediff)/dF
     return ls_e, ls_f
 
 def force_abs_dif(pred_forces, true_forces, fdims):
     fdiff = []
     for i in range(len(pred_forces)):
         fdiff.append(abs(pred_forces[i][0:fdims[i]] - true_forces[i][0:fdims[i]]))
+    #print(pred_forces)
+
     return fdiff
 
 def energy_abs_dif(pred_engs, true_engs):
@@ -251,12 +270,14 @@ class task_weights(torch.nn.Module):
         return total_loss
 
 
-def set_up_task_weights(model, args, optimizer):
+def set_up_task_weights(model, args, optimizer, log_sigma=[-1]):
     if not args.floss:
         args.optimize_force_weight = False
         args.fw = 0.0
     if args.optimize_force_weight:
-        log_sigma = torch.zeros((2), requires_grad=True)
+        print(log_sigma, type(log_sigma))
+        if len(log_sigma) <= 1 :
+            log_sigma = torch.zeros((2), requires_grad=True)
         mtl = task_weights(num_tasks=2, traditional=False)#.to(self.gpu_id)
         model.log_sigma = torch.nn.Parameter(log_sigma)
         optimizer.param_groups[0]['params'].append(model.log_sigma)
@@ -268,52 +289,69 @@ def set_up_task_weights(model, args, optimizer):
     model.mtl = mtl
 
 
-def load_trained_model(args, load_opt=True):
-    checkpoint = torch.load(args.load_model_name)
+def load_trained_model(args, load_opt=True, device='cpu'):
+    if device=='cpu':
+        checkpoint = torch.load(args.load_model_name, weights_only=False, map_location=device)
+    else:
+        checkpoint = torch.load(args.load_model_name, weights_only=False, map_location='cuda:'+str(device))
     new_state_dict = OrderedDict()
     for k, v in checkpoint['model_state_dict'].items():
         if k[:7] == 'module.':
             name = k[7:] # remove 'module.' of DataParallel/DistributedDataParallel
         else:
             name = k
+        if name =='log_sigma':
+            log_sigma=v
         new_state_dict[name] = v
-    #log_sigma = checkpoint['model_state_dict'].pop('log_sigma', None)
     args.netparams = checkpoint['params']
     args.my_actfn = args.netparams['activations'][0]
+    
+    if args.my_actfn == []:
+        args.my_actfn = args.my_activations.copy()
+
+    #print('AAAA', args.my_actfn, args.my_activations)
+    #args.my_actfn = ['gaussian', 'gaussian', 'gaussian', 'identity']
+    #args.my_activations = ['gaussian', 'gaussian', 'gaussian', 'identity']
     prep_netarch(args)
+    #print('HERE args.my_activations: ',args.my_activations)
     args.netparams['activations'] = [args.my_activations for i in range(args.num_species)]
+    #print('HERE args.netparams: ',args.netparams)
     if args.multi_fid:
         net = nnpes.CompositeNetworks_MF(**args.netparams)
     else:
         net = nnpes.CompositeNetworks(**args.netparams)
+
     net.load_state_dict(new_state_dict, strict=False)
-    if load_opt:
-        args.weight_decay = checkpoint['optimizer_state_dict']['param_groups'][0]['weight_decay']
-        args.learning_rate = checkpoint['optimizer_state_dict']['param_groups'][0]['lr']
-        my_lr_scheduler = checkpoint['lr_scheduler']
-        print(' learning rate loaded')
-        return net, my_lr_scheduler
-    else:
-        return net
+        
+
+    #if load_opt:
+    return net, checkpoint, log_sigma #my_lr_scheduler, optimizer
+    #else:
+    #    return net
 
 
 def prep_model(args, load_opt=True,
                num_nn=None, din_nn=256,
                my_neurons_a=None,
                my_neurons_b=None,
-               sae_energies=np.zeros(2), biases=True):
+               sae_energies=np.zeros(2), biases=True, device='cpu'):
 
 
     print('model random seed:', args.randomseed[1])
+    print('biases: ', biases)
     random.seed(args.randomseed[1])
     torch.manual_seed(random.randrange(200000))
     np.random.seed(random.randrange(200000))
     random.seed(random.randrange(200000))
+    
+
+    
+    
     if args.load_model:
-        if load_opt:
-            net, my_lr_scheduler = load_trained_model(args, load_opt)
-        else:
-            net = load_trained_model(args, load_opt)
+        #if load_opt:
+            net, checkpoint, log_sigma= load_trained_model(args, load_opt, device=device)
+        #else:
+        #    net = load_trained_model(args, load_opt, device=device)
     else:
         prep_netarch(args)
         acts = [args.my_activations for i in range(args.num_species)]
@@ -337,38 +375,57 @@ def prep_model(args, load_opt=True,
                              }
             net = nnpes.CompositeNetworks(**args.netparams)
 
-    args.netparams['activations'] = [args.my_actfn for i in range(args.num_species)]
+        args.netparams['activations'] = [args.my_actfn for i in range(args.num_species)]
 
-    net.netparams = args.netparams
-    net.sae_energies = sae_energies
+        net.netparams = args.netparams
+        net.sae_energies = sae_energies
+    net = net.to(device)
+        #print('net:', net)
+    net.eval()
+    print('net.parameters(): ', net.parameters())
+    lrscheduler = args.lrscheduler#[0]
     if args.optimizer[0] == 'SGD':
         optimizer = optim.SGD(net.parameters(), lr=args.learning_rate, momentum=args.momentum,
-                              nesterov=True, weight_decay=args.weight_decay)
+                nesterov=True, weight_decay=args.weight_decay)
     elif args.optimizer[0] == 'Adam':
         optimizer = optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
     elif args.optimizer[0] == 'AdamW':
         optimizer = optim.AdamW(net.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
-    #optimizer = optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
-    if not load_opt or not args.load_model:
-        lrscheduler = args.lrscheduler#[0]
-        print('lrscheduler: ', args.lrscheduler)
-        if lrscheduler == 'exp':
-            my_lr_scheduler = optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=args.decayrate)
-        elif lrscheduler == 'step':
+        #optimizer = optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
+    #if not load_opt or not args.load_model:
+    lrscheduler = args.lrscheduler#[0]
+    print('lrscheduler: ', args.lrscheduler)
+    if lrscheduler == 'exp':
+        my_lr_scheduler = optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=args.decayrate)
+    elif lrscheduler == 'step':
             my_lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.stepsize, gamma=args.decayrate, last_epoch=-1)
-        elif lrscheduler == 'rop':
-            if args.tvt[1] == 0:
-                print('ReduceLROnPlateau LR schecular requires validation set')
-                sys.exit()
-            my_lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.decayrate, patience=args.LR_patience, threshold=args.LR_threshold, verbose=True)
-
+    elif lrscheduler == 'rop':
+        if args.tvt[1] == 0:
+            print('ReduceLROnPlateau LR schecular requires validation set')
+            sys.exit()
+        my_lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.decayrate, patience=args.LR_patience, threshold=args.LR_threshold, verbose=True)
+    
+    #set_up_task_weights(net, args, optimizer)
+    
+    if load_opt:
+        print('LOADING OPT')
+        my_lr_scheduler.load_state_dict(checkpoint['lr_scheduler_sd'])
+        args.weight_decay = checkpoint['optimizer_state_dict']['param_groups'][0]['weight_decay']
+        args.learning_rate = checkpoint['optimizer_state_dict']['param_groups'][0]['lr']
+        #my_lr_scheduler = checkpoint['lr_scheduler']
+        #my_lr_scheduler.load_state_dict(checkpoint['lr_scheduler_sd'])
+            
+    if args.load_model:
+        if len(log_sigma) != 1:
+            set_up_task_weights(net, args, optimizer, log_sigma)
+        #optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        if len(log_sigma) ==1:
+            set_up_task_weights(net, args, optimizer)
+        #print('learning rate loaded')
+    net.netparams = args.netparams
+    net.sae_energies = sae_energies
 
     print('net:', net)
-    
-    #for name, param in net.named_parameters():
-    #    if param.requires_grad:
-    #        print(name, param.data)
-
     return net, optimizer, my_lr_scheduler
 
 
@@ -380,6 +437,7 @@ def args_to_actfn(argsact):
         for i in range(0, len(argsact)):
             if argsact[i] == 'gaussian':
                 actfn.append(nnpes.gaussian)
+                print('CCC')
             elif argsact[i] == 'relu':
                 actfn.append(nnpes.my_relu)
             elif argsact[i] == 'silu':
@@ -389,7 +447,8 @@ def args_to_actfn(argsact):
             elif argsact[i] == 'identity':
                 actfn.append(nnpes.identity)
     else:
-        for i in range(0, argsact):
+        for i in range(0, len(argsact)):
+            print('BBB')
             actfn.append(nnpes.gaussian)
         actfn[-1] = nnpes.identity
 
@@ -398,7 +457,12 @@ def args_to_actfn(argsact):
 
 
 def prep_netarch(args):
-    args.my_activations = args_to_actfn(args.my_actfn)
+    #args.my_actfn = args.netparams['activations'][0]
+    this = args_to_actfn(args.my_actfn)
+    if this != []:
+        args.my_activations = args_to_actfn(args.my_actfn)
+    else:
+        args.my_activations = args_to_actfn(args.my_activations)
     print('activation functions:', args.my_actfn)
     return 0
 
@@ -448,12 +512,13 @@ def sae_calculator(energies, atom_count, sae_guess=np.array([-1035.30436565, -16
     bounds=tuple([low_bounds, high_bounds])
     print('SAE bounds: ', bounds)
     print('Performing least squares fitting to get SAE values to subtact from energies.')
-    lsq_data = least_squares(sae_fitting, sae_guess, bounds=bounds, args=(atom_count, energies))
+    #lsq_data = least_squares(sae_fitting, sae_guess, bounds=bounds, args=(atom_count, energies))
+    lsq_data = least_squares(sae_fitting, sae_guess, args=(atom_count, energies))
     print('SAE energies: ', lsq_data.x)
     return lsq_data.x
 
 
-def load_data(args, get_aevs=True, fid='', mf=None):
+def load_data(args, rank, get_aevs=True, fid='', mf=None):
     print('Data random seed: ', args.randomseed[0])
     if fid=='':
         fid=args.fidlevel
@@ -466,124 +531,120 @@ def load_data(args, get_aevs=True, fid='', mf=None):
     except:
         args.savepth = args.savenm +  '/'
     # Set path
+    Path(args.savenm).mkdir(parents=True, exist_ok=True)
     args.trpath = args.savepth + 'training'+str(fid)+'/'
-    #args.vlpath = args.savepth + 'validation'+str(args.fidlevel)+'/'
+    args.vlpath = args.savepth + 'validation'+str(fid)+'/'
     args.tspath = args.savepth + 'testing'+str(fid)+'/'
-    if args.pre_saved:
-        print('args.trpath: ', args.trpath)
-        train_vld_engs = torch.load(args.trpath+'train_engs')
+    print('args.trpath: ', args.trpath)
 
-        if sum(args.tvt) > 1.0:
-            trv_indx = list(range(int(args.tvt[0] + args.tvt[1])))
-            random.shuffle(trv_indx)
-            train_indx = trv_indx[:int(args.tvt[0])]
-            valid_indx = trv_indx[int(args.tvt[0]):]
-        elif sum(args.tvt)==1.0:
-            ntv = len(train_vld_engs)
-            trv_indx = list(range(ntv))
-            random.shuffle(trv_indx)
-            nt = int(args.tvt[0] * ntv)
-            nv = ntv - nt
-            train_indx=trv_indx[:nt]
-            valid_indx=trv_indx[nv:]
+    sae_energies = np.load(args.trpath + 'sae_energies.npy')
+    dimdat = torch.load(args.trpath+'aev_length')
+    keys = torch.load(args.trpath+'keys')
+    #all_train_batches = torch.load(args.trpath + 'all_train_batches')
+    #all_valid_batches = torch.load(args.vlpath + 'all_valid_batches')
+    #all_test_batches = torch.load(args.tspath + 'all_test_batches')
+    
+    
+    force_average = torch.load(args.trpath + 'force_average') 
+    #force_average=1.0
+    args.force_average = force_average
+   
+    force_range = torch.load(args.trpath + 'force_range')
+    args.force_range = force_range
+
+    energy_range = torch.load(args.trpath + 'energy_range')
+    args.energy_range = energy_range
+
+    all_tv_batches = torch.load(args.trpath + 'tv_files')
+    all_tv_inds = torch.load(args.trpath + 'tv_inds')
+    all_train_batches = []
+    all_valid_batches = []
+    all_train_inds = []
+    all_valid_inds = []
+    tv_bi = list(zip(all_tv_batches, all_tv_inds))
+    random.shuffle(tv_bi)
+    all_tv_batches, all_tv_inds = zip(*tv_bi)
+    trc = 0
+    vlc = 0
+    #print(args.tvt[1])
+    tr_rem = args.tvt[0] % args.tr_batch_size
+    vl_rem = args.tvt[1] % args.vl_batch_size
+    tr_rem_check = 0
+    vl_rem_check = 0
+    tv_rem = (args.tvt[0] + args.tvt[1]) % args.tr_batch_size
+    #print(tv_rem, tr_rem, vl_rem)
+    for i in range(len(all_tv_batches)):
+        blf = all_tv_batches[i].split('/')[-1]
+        bl = float(blf.split('_')[2])
+        if bl == args.tr_batch_size:
+            if trc + bl <= args.tvt[0]:
+                trc += bl
+                all_train_batches.append(all_tv_batches[i])
+                #for bb in all_tv_batches[i]:
+                #    all_train_inds.append(all_tv_inds[i][bb])
+                all_train_inds.append(all_tv_inds[i])
+            elif (vlc + bl) <= (args.tvt[1] + tv_rem):
+                vlc += bl
+                all_valid_batches.append(all_tv_batches[i])
+                #for bb in all_tv_batches[i]:
+                #    all_valid_inds.append(all_tv_inds[i][bb])
+                all_valid_inds.append(all_tv_inds[i])
         else:
-            print('args.tvt must either sum to one or contain only whole numbers')
-            sys.exit()
+            vlc += bl
+            all_valid_batches.append(all_tv_batches[i])
+            #for bb in all_tv_inds[i]:
+            #    all_valid_inds.append(all_tv_inds[i][bb])
+            all_valid_inds.append(all_tv_inds[i])
+        #elif bl == tr_rem and tr_rem_check == 0:
+        #    trc += bl
+        #    all_train_batches.append(all_tv_batches[i])
+        #    all_train_inds.append(all_tv_inds[i])
+        #    tr_rem_check += 1
+        #elif bl == vl_rem and vl_rem_check == 0:
+        #    vlc += bl
+        #    all_valid_batches.append(all_tv_batches[i])
+        #    all_valid_inds.append(all_tv_inds[i])
+        #    vl_rem_check += 1
+        if trc == args.tvt[0] and vlc == args.tvt[1]:
+            break
+    print('training set size: ', trc)
+    print('validatiion set size: ', vlc)
 
-        
-        del trv_indx
+    Path(args.savenm).mkdir(parents=True, exist_ok=True)
+    torch.save(all_train_inds, args.savenm +  '/' + 'train_inds')
+    torch.save(all_valid_inds, args.savenm +  '/' + 'valid_inds')
+    #all_valid_batches = torch.load(args.vlpath + 'valid_files')
+    all_test_batches = torch.load(args.tspath + 'test_files')
+    #shutil.copyfile(args.trpath + 'test_inds', args.tspath + 'test_inds')
 
-        if get_aevs:
-            sae_energies = np.load(args.trpath + 'sae_energies.npy')
-            dimdat = torch.load(args.trpath+'aev_length')
-            train_vld_aevs = torch.load(args.trpath+'train_aevs')
-            train_aevs = [train_vld_aevs[i] for i in train_indx]
-            valid_aevs = [train_vld_aevs[i] for i in valid_indx]
-            #print(train_aevs)
-            del train_vld_aevs
-            test_aevs = torch.load(args.tspath+'test_aevs')
+    #print('all_train_batches[0][-1]', all_train_batches[0][-1])
+    
+    print(rank)
+    all_train_batches = MyTrainDataset2(len(all_train_batches), all_train_batches, rank)
+    all_valid_batches = MyTrainDataset2(len(all_valid_batches), all_valid_batches, rank)
+    all_test_batches = MyTrainDataset2(len(all_test_batches), all_test_batches, rank)
+    
+    
 
-        #train_vld_engs = torch.load(args.trpath+'train_engs')
-        train_engs = [train_vld_engs[i] for i in train_indx]#train_vld_engs[train_indx]
-        valid_engs = [train_vld_engs[i] for i in valid_indx]#train_vld_engs[valid_indx]
-        del train_vld_engs
-        
-
-        test_engs = torch.load(args.tspath+'test_engs')
-
-        if args.floss:
-            train_vld_forces = torch.load(args.trpath+'train_forces')
-            train_vld_fdims = torch.load(args.trpath+'train_fdims')
-            train_forces = [train_vld_forces[i] for i in train_indx]
-            valid_forces = [train_vld_forces[i] for i in valid_indx]
-
-            #train_forces = train_vld_forces[train_indx]
-            #valid_forces = train_vld_forces[valid_indx]
-            del train_vld_forces
-
-            train_fdims = [train_vld_fdims[i] for i in train_indx]
-            valid_fdims = [train_vld_fdims[i] for i in valid_indx]
-            #train_fdims = train_vld_fdims[train_indx]
-            #valid_fdims = train_vld_fdims[valid_indx]
-            del train_vld_fdims
-
-            test_forces = torch.load(args.tspath+'test_forces')
-            test_fdims = torch.load(args.tspath+'test_fdims')
-            if get_aevs:
-                #train_vld_daevs = np.array(torch.load(args.trpath+'train_daevs'))
-                train_vld_daevs = torch.load(args.trpath+'train_daevs')
-                train_daevs = [train_vld_daevs[i] for i in train_indx]
-                valid_daevs = [train_vld_daevs[i] for i in valid_indx]
-
-
-                #train_daevs = train_vld_daevs[train_indx]
-                #valid_daevs = train_vld_daevs[valid_indx]
-                del train_vld_daevs
-
-                test_daevs = torch.load(args.tspath+'test_daevs')
-
-        if get_aevs:
-        
-            if args.floss:
-                train_stuff = MyTrainDataset(size=len(train_engs), aevs=train_aevs, forces=train_forces, daevs=train_daevs, fdims = train_fdims, engs=train_engs)
-                valid_stuff = MyTrainDataset(size=len(valid_engs), aevs=valid_aevs, forces=valid_forces, daevs=valid_daevs, fdims = valid_fdims, engs=valid_engs)
-                test_stuff = MyTrainDataset(size=len(test_engs), aevs=test_aevs, forces=test_forces, daevs=test_daevs, fdims = test_fdims, engs=test_engs)
-            else:
-                train_stuff = MyTrainDataset(size=len(train_engs), aevs=train_aevs, engs=train_engs)
-                valid_stuff = MyTrainDataset(size=len(valid_engs), aevs=valid_aevs, engs=valid_engs)
-                test_stuff = MyTrainDataset(size=len(test_engs), aevs=test_aevs, engs=test_engs)
-        else:
-            if args.floss:
-                train_stuff = MyTrainDataset(size=len(train_engs), forces=train_forces, engs=train_engs)
-                valid_stuff = MyTrainDataset(size=len(valid_engs), forces=valid_forces, engs=valid_engs)
-                test_stuff = MyTrainDataset(size=len(test_engs), forces=test_forces, engs=test_engs)
-            else:
-                train_stuff = MyTrainDataset(size=len(train_engs), engs=train_engs)
-                valid_stuff = MyTrainDataset(size=len(valid_engs), engs=valid_engs)
-                test_stuff = MyTrainDataset(size=len(test_engs), engs=test_engs)
-
-
-        train_set = train_stuff
-        valid_set = valid_stuff
-        test_set  = test_stuff
-        keys = []
-        for key in train_set.data_dict:
-            keys.append(key)
-        print('keys: ', keys)
-        if get_aevs:
-            return train_set, valid_set, test_set, sae_energies, dimdat, keys
-        else:
-            return train_set, valid_set, test_set, keys
+    return all_train_batches, all_valid_batches, all_test_batches, sae_energies, dimdat, keys
 
 def prep_data(args, mf=None, fid='', get_aevs=True):
+    # do this for repeatability of random samples from pytorch
+    print('random seed:', args.randomseed[0])
+    random.seed(args.randomseed[0])
+    torch.manual_seed(random.randrange(200000))
+    np.random.seed(random.randrange(200000))
+    random.seed(random.randrange(200000))
+    
+    
     # Set path
     args.savepth = args.savenm +  '/'
     args.trpath = args.savepth + 'training'+str(fid)+'/'
-    #args.vlpath = args.savepth + 'validation'+str(fid)+'/'
+    args.vlpath = args.savepth + 'validation'+str(fid)+'/'
     args.tspath = args.savepth + 'testing'+str(fid)+'/'
     Path(args.savepth).mkdir(parents=True, exist_ok=True)
     Path(args.trpath).mkdir(parents=True, exist_ok=True)
-    #Path(args.vlpath).mkdir(parents=True, exist_ok=True)
+    Path(args.vlpath).mkdir(parents=True, exist_ok=True)
     Path(args.tspath).mkdir(parents=True, exist_ok=True)
 
     # Data preparation
@@ -607,8 +668,6 @@ def prep_data(args, mf=None, fid='', get_aevs=True):
     dpes.trid_fname = None
     args.excludexid = False
     # read database and parse it
-    print("Get data")
-    
     args.wrw = False
     if args.floss:
         # write AEV with force:
@@ -616,64 +675,125 @@ def prep_data(args, mf=None, fid='', get_aevs=True):
     else:
         args.wrf = False
 
-    t00 = timeit.default_timer()
-    if args.gen_byid:
-        print('prepper: calling read_xidtxt with args.trtsid_name[0]:',args.trtsid_name[0])
-        xid = read_xidtxt(args.trtsid_name[0])
-        print('prepper: calling get_data with xid length:',len(xid))
-        dpes.get_data(args, xid=xid, fid = fid, get_aevs=get_aevs)
-    else:
-        print('prepper: prep_data: calling get_data with no xid spec')
-        dpes.get_data(args, fid = fid, get_aevs=get_aevs)
-
-    t01 = timeit.default_timer()
-    print('Generating AEV (min): ', (t01 - t00) / 60)
-
-    # do this for repeatability of random samples from pytorch
-    print('random seed:', args.randomseed[0])
-    random.seed(args.randomseed[0])
-    torch.manual_seed(random.randrange(200000))
-    np.random.seed(random.randrange(200000))
-    random.seed(random.randrange(200000))
-
-
-    print("prepper.py: prep_dat: Prepare training, validation, and testing data")
-    dpes.md = [i[6] for i in dpes.meta]
-    del dpes.meta
-
-
     if args.read_tvtmsk:
+        #print('HERE')
         tvtmsk = read_xidtxt(args.trtsid_name[0], tvtmsk=True)
         tvtset = np.array(tvtmsk)[:,1]
         tvtind = np.array(tvtmsk)[:,0]
-        train_spots = np.where(tvtset=='2')[0]
-        #valid_spots = np.where(tvtset=='0')[0]
+        #print(len(tvtind))
+        #train_spots = np.where(tvtset=='2')[0]
+        tv_spots = np.where(tvtset=='2')[0]
+        if (args.tvt[0] + args.tvt[1]) > len(tv_spots):
+            print('Not enough datapoints in tvt file for training and validation')
+            sys.exit()
+        #valid_spots = np.random.choice(tv_spots, args.tvt[1], replace=False)
+
+        #tr_spots = [i for i in tv_spots if i not in valid_spots]
+        train_spots = np.random.choice(tv_spots, args.tvt[0] + args.tvt[1], replace=False)
         test_spots = np.where(tvtset=='-1')[0]
-        train_ind = set(tvtind[train_spots])
-        test_ind = set(tvtind[test_spots])
+        train_ind = tvtind[train_spots]
+        #valid_ind = tvtind[valid_spots]
+        print('len(train_ind): ', len(train_ind))
+        test_ind = tvtind[test_spots]
         print('prepper.py: prep_dat: tvt mask for testset was set based on the file: {}.'.format(args.trtsid_name))
     else:
         ntvts = len(dpes.md)
         nlist = list(range(len(dpes.md)))
         random.shuffle(nlist)
         if sum(args.tvt) > 1.0:
-            train_ind=[dpes.md[i] for i in nlist[:args.tvt[0]+args.tvt[1]]]
+            train_ind=[dpes.md[i] for i in nlist[args.tvt[0]:args.tvt[1]]]
+            valid_ind=[dpes.md[i] for i in nlist[args.tvt[1]:args.tvt[2]]]
             test_ind=[dpes.md[i] for i in nlist[args.tvt[2]:]]
         elif sum(args.tvt) == 1.0:
             ntv = int((args.tvt[0]+args.tvt[1]) * ntvts)
             nts = ntvts - ntv
             train_ind=[dpes.md[i] for i in nlist[:ntv]]
+
             test_ind=[dpes.md[i] for i in nlist[nts:]]
+
         else:
             print('args.tvt must either sum to one or contain only whole numbers')
             sys.exit()
+
+   
+    np.random.shuffle(train_ind)
+    #np.random.shuffle(valid_ind)
+    np.random.shuffle(test_ind)
+
+    tr_batches = chunk_array(train_ind, args.tr_batch_size)
+    #vl_batches = chunk_array(valid_ind, args.vl_batch_size)
+    ts_batches = chunk_array(test_ind, args.ts_batch_size)
     
-    dpes.prep_training_data(train_ind, bpath = args.trpath, with_aev_data = get_aevs)
+    #all_train_data = []
+    #all_valid_data = []
+    #all_test_data = []
+    
+    all_train_engs = []
+    all_train_formulas = []
+    
+    all_valid_engs = []
+    all_valid_formulas = []
 
-    #dpes.prep_validation_data(bpath = args.vlpath)
+    all_test_engs = []
+    all_test_formulas = []
 
-    dpes.prep_testing_data(test_ind, bpath = args.tspath, with_aev_data = get_aevs)
+    print("Get data")
+    co=0
+    ltb = len(tr_batches)
+    #lvb = len(vl_batches)
+    lsb = len(ts_batches)
 
+    trfiles = []
+    vlfiles = []
+    tsfiles = []
+    all_tv_inds = []
+    all_train_forces = 0.0
+    nforces = 0
+    for batch in tr_batches:
+        print('Starting training batch ', co+1, 'of', ltb)
+        if True:
+        #if not os.path.exists(args.trpath+'tv_batch'+str(co)+'_'+str(len(batch))):
+            dpes.get_data(args, xid=batch, fid = fid, get_aevs=get_aevs)
+            batched_train = dpes.prep_training_data(batch, bpath = args.trpath, with_aev_data = get_aevs, with_force_data=args.floss, batch_num=str(co))
+            if args.floss:
+                min_force=  9999999
+                max_force= -9999999
+                for fm in range(len(batched_train[3])):
+                    nforces += batched_train[5][fm]
+                    all_train_forces += torch.sum(abs(batched_train[3][fm][0:batched_train[5][fm]]))
+                    mif = torch.min(batched_train[3][fm][0:batched_train[5][fm]])
+                    maf = torch.max(batched_train[3][fm][0:batched_train[5][fm]])
+                    if mif < min_force:
+                        min_force = mif
+                    if maf > max_force:
+                        max_force = maf
+            torch.save(batched_train, args.trpath+'tv_batch'+str(co)+'_'+str(len(batch)))
+            #torch.save(batch, args.trpath+'inds_'+str(co))
+            all_tv_inds.append(batch)
+            trfiles.append(args.trpath+'tv_batch'+str(co)+'_'+str(len(batch)))
+            #all_train_data.append(batched_train)
+            for mol in range(len(dpes.full_symb_data)):
+                acount = []
+                for sp in args.present_elements:
+                    acount.append(dpes.full_symb_data[mol].count(sp))
+                all_train_engs.append(batched_train[-1][mol].item())
+                all_train_formulas.append(acount)
+        co+=1
+    print('len(trfiles): ', len(trfiles))
+    if args.floss:
+        force_range = max_force - min_force
+        all_train_forces = all_train_forces / nforces
+        print('Averagee magnitude of training forces (eV): ', all_train_forces)
+        print('Range of training forces (eV): ', force_range)
+        torch.save(all_train_forces, args.trpath + 'force_average')
+        torch.save(force_range, args.trpath + 'force_range')
+    torch.save(trfiles, args.trpath+'tv_files')
+    torch.save(all_tv_inds, args.trpath+'tv_inds')
+    
+    #torch.save(all_train_data, args.trpath+'all_train_batches')
+    #del all_train_data 
+    
+   
     sae_guess_dict = {
             'C':-1035.30436565,
             'H':-16.8356588,
@@ -683,79 +803,127 @@ def prep_data(args, mf=None, fid='', get_aevs=True):
             'S':-10834.4396698,
             'Cl':-12522.6292598
             }
-
+    energy_range = max(all_train_engs) - min(all_train_engs)
     if args.sae_fit:
-        atom_count = []
-        total_energies = []
-        for co in range(len(dpes.train_engs)):
-            acount = []
-            for ty in range(len(dpes.train_aevs[co])):
-                acount.append(len(dpes.train_aevs[co][ty]))
-            atom_count.append(acount)
-            total_energies.append(dpes.train_engs[co].item())
-        atom_count = np.array(atom_count)
+        all_train_engs = np.array(all_train_engs)
+        all_train_formulas = np.array(all_train_formulas)
         sae_guess = []
         for i in args.present_elements:
             sae_guess.append(sae_guess_dict[i])
         sae_guess = np.array(sae_guess)
-        sae_energies = sae_calculator(total_energies, atom_count, sae_guess=sae_guess)
-        energies_to_subtract = np.zeros((len(dpes.train_engs)))
+        #print(all_train_engs)
+        #print(all_train_formulas)
+        sae_energies = sae_calculator(all_train_engs, all_train_formulas, sae_guess=sae_guess)
+        energies_to_subtract = np.zeros((len(all_train_engs)))
         for atype in range(len(sae_energies)):
-            energies_to_subtract += sae_energies[atype] * atom_count[:,atype]
-        subtracted_energies = total_energies - energies_to_subtract
+            energies_to_subtract += sae_energies[atype] * all_train_formulas[:,atype]
+        subtracted_energies = all_train_engs - energies_to_subtract
         ymax = np.max(subtracted_energies)
         ymin = np.min(subtracted_energies)
         print('min energy: ', ymin)
         print('max energy: ', ymax)
         print('Mean of subtracted energies (should be close to 0): ', np.mean(subtracted_energies))
         print('Range of subtracted energies: ', max(subtracted_energies) - min(subtracted_energies))
+        print('len(subtracted_energies): ', len(subtracted_energies))
+        energy_range = max(subtracted_energies) - min(subtracted_energies)
         dpes.sae_energies = sae_energies
     else:
         dpes.sae_energies = np.zeros(dpes.num_nn)
-    
+
     np.save(args.trpath + 'sae_energies', dpes.sae_energies)
+    torch.save(energy_range, args.trpath + 'energy_range')
+
+
+    
+    #co=0
+    #for batch in vl_batches:
+    #    print('Starting validation batch ', co+1, 'of', lvb)
+    #    dpes.get_data(args, xid=batch, fid = fid, get_aevs=get_aevs)
+    #    batched_valid = dpes.prep_training_data(batch, bpath = args.vlpath, with_aev_data = get_aevs, batch_num=str(co))
+    #    torch.save(batched_valid, args.vlpath+'valid_batch'+str(co))
+    #    vlfiles.append(args.vlpath+'valid_batch'+str(co))
+    #    co+=1
+    #print('len(vlfiles): ', len(vlfiles))
+    #torch.save(vlfiles, args.vlpath+'valid_files')
+    #torch.save(all_valid_data, args.vlpath+'all_valid_batches')
+    #del all_valid_data
+    
+    
+    
+    co=0
+    for batch in ts_batches:
+        print('Starting testing batch ', co+1, 'of', lsb)
+        dpes.get_data(args, xid=batch, fid = fid, get_aevs=get_aevs)
+        batched_test = dpes.prep_training_data(batch, bpath = args.tspath, with_aev_data = get_aevs, with_force_data=args.floss, batch_num=str(co))
+        torch.save(batched_test, args.tspath+'test_batch'+str(co))
+        tsfiles.append(args.tspath+'test_batch'+str(co))
+        co+=1
+    print('len(tsfiles): ', len(tsfiles))
+    torch.save(tsfiles, args.tspath+'test_files')
+    torch.save(ts_batches, args.tspath+'test_inds')
+    #torch.save(all_test_data, args.tspath+'all_test_batches')
+    #del all_test_data
+
+
+    #sys.exit()
+
     
     return
 
 
-def cat_data(tocat, key, ind, device, num_spec):
-    items = []
+
+
+
+
+def cat_data(batch_all, key, ind, num_spec):
     ids = []
     nmols = []
-    for batch_all in tocat:
-        batch = [batch_all[i][ind] for i in range(len(batch_all))]
-        #if key == 'engs' or key == 'forces' or key == 'daevs':
-        if 'engs' in key or 'forces' in key:
-            batch = [torch.tensor(i) for i in batch]
-        if key == 'aevs' or key == 'daevs':
-            ss = [[[] for mol in range(len(batch))] for spec in range(num_spec)]
-            id_spec = [[] for spec in range(num_spec)]
-            mol_count = 0
-            for mol in range(len(batch)):
-                ss_spec = []
-                mol_count += 1
-                for spec in range(len(batch[mol])):
-                    ss[spec][mol] = torch.tensor(batch[mol][spec]).to(device).requires_grad_()
-                    if key == 'aevs':
-                        id_spec[spec] += [mol] * len(batch[mol][spec])
-            ss = [torch.cat(s) for s in ss]
-            bitem = ss
-            if key == 'aevs':
-                id_spec = [torch.tensor(spec).to(device) for spec in id_spec]
-                ids.append(id_spec)
-                nmols.append(mol_count)
+    bc=0
+    batch = [batch_all[i][ind] for i in range(len(batch_all))]
+    if 'engs' in key or 'forces' in key:
+        #batch = [torch.tensor(i) for i in batch]
+        batch = [i.clone().detach() for i in batch]
+    if key == 'aevs' or key == 'daevs':
+        ss = [[[] for mol in range(len(batch))] for spec in range(num_spec)]
 
-        if 'forces' in key or 'engs' in key:
-            bitem = torch.cat([item for item in batch]).to(device)
-            if 'engs' in key:
-                bitem = bitem.unsqueeze(0).T
-        if 'fdims' in key:
-            bitem = batch
-        items.append(bitem)
+        id_spec = [[] for spec in range(num_spec)]
+        mol_count = 0
+        for mol in range(len(batch)):
+            mol_count += 1
+            for spec in range(len(batch[mol])):
+
+                ss[spec][mol] = batch[mol][spec].clone().detach().requires_grad_()
+                if key == 'aevs':
+                    #print('device, batch: ', batch[0][0][0][0])
+                    id_spec[spec] += [mol] * len(batch[mol][spec])
+            batch[mol][spec] = []
+        ss = [torch.cat(s) for s in ss]
+
+        if key == 'aevs':
+            id_spec = [torch.tensor(spec) for spec in id_spec]
+            ids.append(id_spec)
+            nmols.append(mol_count)
+
+    if 'forces' in key or 'engs' in key:
+        bitem = torch.cat([item for item in batch])#.to(device)
+        #if key=='engs':
+        #    print(bitem)
+        if 'engs' in key:
+            bitem = bitem.unsqueeze(0).T
+    if 'fdims' in key:
+        bitem = batch
+
+    #sys.exit()
+
     if key == 'aevs':
-        return items, ids, nmols
+        return ss, id_spec, mol_count
+    elif key == 'daevs':
+        return ss
     else:
-        return items
+        return bitem
+
+
+
 
 
 class MyTrainDataset(Dataset):
@@ -775,17 +943,91 @@ class MyTrainDataset(Dataset):
         ret_data = []
         for key in self.data_dict:
             ret_data.append(self.data_dict[key][index])
-        return ret_data 
+        return ret_data
+
+
+
+
+class MyTrainDataset2(Dataset):
+    def __init__(self, size, files, rank):
+        self.size = size
+        self.files = files
+        self.rank = rank
+        self.transform = transforms.Compose([transforms.ToTensor()])
+
+    def __len__(self):
+        return self.size
+
+    def __getitem__(self, index):
+        #print('self.file[index]: ', self.rank, index, self.files[index])
+        #print('index: ', index)
+        open_batch = torch.load(self.files[index])
+        if len(open_batch) == 7:
+            #aevs = [i.to(self.rank) for i in open_batch[0]]
+            aevs = [i.to_dense().requires_grad_().to(self.rank) for i in open_batch[0]]
+            ids = open_batch[1]
+            nmols = open_batch[2]
+            forces = [i.to(self.rank) for i in open_batch[3]]
+            #daevs = [i.to(self.rank) for i in open_batch[4]]
+            daevs = [i.to_dense().to(self.rank) for i in open_batch[4]]
+            open_batch[4] = []
+            fdims = open_batch[5]
+            engs = open_batch[6].to(self.rank)
+            ret = [aevs, ids, nmols, forces, daevs, fdims, engs]
+        else:
+            #aevs = [i.to(self.rank) for i in open_batch[0]]
+            aevs = [i.to_dense().requires_grad_().to(self.rank) for i in open_batch[0]]
+            ids = open_batch[1]
+            nmols = open_batch[2]
+            engs = open_batch[-1].to(self.rank)
+            ret = [aevs, ids, nmols, engs]
+        #print(engs, self.files[index], forces, torch.isnan(1,daevs))
+        return ret#self.data[index]
+
+
+
+
+
 
 
 def my_collate(batch):
-    ret_data = []
-    for dp in batch:
-        item = [dp[i] for i in range(len(dp))]
-        ret_data.append(item)
+    if len(batch[0])==7:
+        aevs = batch[0][0]
+        ids = batch[0][1]
+        nmols = batch[0][2]
+        forces = batch[0][3]
+        daevs = batch[0][4]
+        fdims = batch[0][5]
+        engs = batch[0][6]
+    
+        return aevs, ids, nmols, forces, daevs, fdims, engs
+    else:
+        aevs = batch[0][0]
+        ids = batch[0][1]
+        nmols = batch[0][2]
+        engs = batch[0][-1]
 
-    return ret_data
+        return [aevs, ids, nmols, engs]
 
+
+
+class DistributedIndicesWrapper(torch.utils.data.Dataset):
+    """
+    Utility wrapper so that torch.utils.data.distributed.DistributedSampler can work with train test splits
+    """
+    def __init__(self, dataset: torch.utils.data.Dataset):
+        self.dataset = dataset
+        self.indices = list(range(len(self.dataset)))
+        print(self.indices)
+
+    def __len__(self):
+        return 1#self.indices.size(0)
+
+    def __getitem__(self, item):
+        # TODO: do the sampling here ?
+        idx = self.indices[item]
+        #print('item: ', len(self.dataset[idx]))
+        return self.dataset[idx]
 
 
 def load_train_data(args, get_aevs=True, fid=''):
@@ -803,35 +1045,43 @@ def load_train_data(args, get_aevs=True, fid=''):
 
     return train_set, valid_set, test_set, keys
 
-def load_train_objs(args, get_aevs=True, fid=''):
+def load_train_objs(args, rank, get_aevs=True, fid=''):
     random.seed(args.randomseed[1])
     torch.manual_seed(random.randrange(200000))
     np.random.seed(random.randrange(200000))
     random.seed(random.randrange(200000))
     #print('ABOUT TO PREP DATA!')
     #load_train_data(args)
-    train_set, valid_set, test_set, sae_energies, dimdat, keys = load_data(args, get_aevs=True, fid=fid, mf=None)
-
-    #print('DATA PREPED!')
+    train_set, valid_set, test_set, sae_energies, dimdat, keys = load_data(args, rank, get_aevs=True, fid=fid, mf=None)
+    print('RANK IN LOAD DATA OBJS: ', rank)
+    sampler=None
+    #print('DATA PREPED!')i
     if args.ddp:
-        train_set = DataLoader(train_set, batch_size=args.tr_batch_size, pin_memory=True, shuffle=False, sampler=DistributedSampler(train_set), collate_fn=my_collate)
+        sampler = DistributedSampler(train_set)
+        #train_set = DataLoader(train_set, batch_size=args.tr_batch_size, pin_memory=True, shuffle=False, sampler=DistributedSampler(train_set), collate_fn=my_collate)
+        train_set = DataLoader(train_set, batch_size=1, pin_memory=False, shuffle=False, sampler=sampler, collate_fn=my_collate)
+        #valid_set = DataLoader(valid_set, batch_size=1, pin_memory=False, shuffle=False, sampler=DistributedSampler(valid_set), collate_fn=my_collate)
     else:
-        train_set = DataLoader(train_set, batch_size=args.tr_batch_size, pin_memory=True, shuffle=False, collate_fn=my_collate)
-    valid_set = DataLoader(valid_set, batch_size=args.vl_batch_size, pin_memory=True, shuffle=False, collate_fn=my_collate)
-    test_set = DataLoader(test_set, batch_size=args.ts_batch_size, pin_memory=True, shuffle=False, collate_fn=my_collate)
+        #train_set = DataLoader(train_set, batch_size=args.tr_batch_size, pin_memory=True, shuffle=False, collate_fn=my_collate)
+        train_set = DataLoader(train_set, batch_size=1, pin_memory=False, shuffle=False, collate_fn=my_collate)
+    valid_set = DataLoader(valid_set, batch_size=1, pin_memory=False, shuffle=False, collate_fn=my_collate)
+    #valid_set = DataLoader(valid_set, batch_size=args.vl_batch_size, pin_memory=True, shuffle=False, collate_fn=my_collate)
+    #test_set = DataLoader(test_set, batch_size=args.ts_batch_size, pin_memory=True, shuffle=False, collate_fn=my_collate)
+    test_set = DataLoader(test_set, batch_size=1, pin_memory=False, shuffle=False, collate_fn=my_collate)
     #print('train_set: ', train_set)
     print('DATA LOADED!')
     if args.load_model:
-        nn_pes, optimizer, lr_scheduler = prep_model(args, sae_energies=sae_energies)
+        nn_pes, optimizer, lr_scheduler = prep_model(args, sae_energies=sae_energies, device=rank, load_opt=args.load_opt)
     else:
-        nn_pes, optimizer, lr_scheduler      = prep_model(args,
+        nn_pes, optimizer, lr_scheduler      = prep_model(args, load_opt=False,
                                                   num_nn=2, din_nn=dimdat,
                                                   my_neurons_a=args.my_neurons,
                                                   my_neurons_b=args.my_neurons,
-                                                  sae_energies=sae_energies, biases=False)
+                                                  sae_energies=sae_energies, biases=False, device=rank)
     
     #del dpes
-    return train_set, valid_set, test_set, nn_pes, optimizer, lr_scheduler, sae_energies, keys
+    print(next(nn_pes.parameters()).device)
+    return train_set, valid_set, test_set, nn_pes, optimizer, lr_scheduler, sae_energies, keys, sampler, args.force_average, args.force_range, args.energy_range
 
 
 # ====================================================================================================
