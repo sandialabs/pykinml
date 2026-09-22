@@ -30,7 +30,7 @@ import torch.nn as nn
 import torch.multiprocessing as mp
 
 
-from pykinml import data
+from pykinml import data as data
 from pykinml import nnpes
 from pykinml import daev as daev_calc
 from pykinml import prepper as prep
@@ -55,7 +55,7 @@ def ddp_setup(rank, world_size):
         world_size: Total number of processes
     """
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "12334"
+    os.environ["MASTER_PORT"] = "12335"
     init_process_group(backend="gloo", rank=rank, world_size=world_size)
     torch.cuda.set_device(rank)
 
@@ -70,7 +70,10 @@ def ddp_setup(rank, world_size):
 class Runner:
     def __init__(self, args, device):
         self.num_spec = len(args.present_elements)
-        self.model = prep.load_trained_model(args, load_opt=False)
+        self.model, a, b = prep.load_trained_model(args, load_opt=False)
+        print('model: ', self.model)
+        #print(a)
+        #print(b)
         self.model.to(device)
         self.model.add_sae = True
  
@@ -108,9 +111,12 @@ class Runner:
         return torch.cat(self.pred_engs)
 
 
+def get_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        return param_group['lr']
 
 class Trainer:
-    def __init__(self, model, train_data, valid_data, test_data, keys, optimizer, lr_scheduler, sae_energies, save_every: int, fname: str, svpath:str, device, force_train=False, num_spec=2):
+    def __init__(self, model, train_data, valid_data, test_data, keys, optimizer, lr_scheduler, sae_energies, save_every: int, fname: str, svpath:str, device, force_train=False, sampler=None, force_average = 1.0, force_range=1.0, energy_range=1.0, num_spec=2):
         """
         Class for training single fidelity NNPES.
         input:
@@ -134,6 +140,7 @@ class Trainer:
         self.keys = keys
         self.save_every = save_every
         self.FT=force_train
+        self.sampler=sampler
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
         self.sae_energies = sae_energies
@@ -142,13 +149,19 @@ class Trainer:
         if self.device == 'cpu' or self.device == 0:
             Path(self.svpath).mkdir(parents=True, exist_ok=True)
         self.openf = open(fname, "w")
-
+        self.best = 99999999999.9
+        self.force_average = force_average
+        self.force_range = force_range**2
+        self.energy_range = energy_range**2
+        #self.Ew = Ew
+        #self.Fw = Fw
 
     def save_ddp(self, net_fnam, epoch, optimizer):
         torch.save({'epoch': epoch,
                     'optimizer': optimizer,
                     'optimizer_state_dict': optimizer.state_dict(),
-                    'lr_scheduler': self.lr_scheduler,
+                    #'lr_scheduler': self.lr_scheduler,
+                    'lr_scheduler_sd': self.lr_scheduler.state_dict(),
                     'model_state_dict': self.model.state_dict(),
                     'sae_energies': self.sae_energies,
                     'params': self.model.module.netparams
@@ -159,7 +172,8 @@ class Trainer:
         torch.save({'epoch': epoch,
                     'optimizer': optimizer,
                     'optimizer_state_dict': optimizer.state_dict(),
-                    'lr_scheduler': self.lr_scheduler,
+                    #'lr_scheduler': self.lr_scheduler,
+                    'lr_scheduler_sd': self.lr_scheduler.state_dict(),
                     'model_state_dict': self.model.state_dict(),
                     'sae_energies': self.sae_energies,
                     'params': self.model.netparams
@@ -167,81 +181,97 @@ class Trainer:
                    self.svpath + '/' + net_fnam + '-' + str(epoch).zfill(4) + ".pt")
 
 
-    def cat_data(self, tocat, key, ind):
-        random.seed(0)
-        torch.manual_seed(random.randrange(200000))
-        np.random.seed(random.randrange(200000))
-        random.seed(random.randrange(200000))
-        items = []
-        ids = []
-        nmols = []
-        for batch_all in tocat:
-            batch = [batch_all[i][ind] for i in range(len(batch_all))]
-            if key == 'engs' or key == 'forces' or key == 'daevs':
-                batch = [torch.tensor(i) for i in batch]
-            if key == 'aevs' or key == 'daevs':
-                ss = [[[] for mol in range(len(batch))] for spec in range(self.num_spec)]
-                id_spec = [[] for spec in range(self.num_spec)]
-                mol_count = 0
-                for mol in range(len(batch)):
-                    ss_spec = []
-                    mol_count += 1
-                    for spec in range(len(batch[mol])):
-                        ss[spec][mol] = batch[mol][spec].to(self.device).requires_grad_()
-                        if key == 'aevs':
-                            id_spec[spec] += [mol] * len(batch[mol][spec])
-                ss = [torch.cat(s) for s in ss]
-                bitem = ss
-                if key == 'aevs':
-                    id_spec = [torch.tensor(spec).to(self.device) for spec in id_spec]
-                    ids.append(id_spec)
-                    nmols.append(mol_count)
-            
-            if key == 'forces' or key=='engs':
-                bitem = torch.cat([item for item in batch]).to(self.device)
-                if key == 'engs': 
-                    bitem = bitem.unsqueeze(0).T
-            if key == 'fdims':
-                bitem = batch
-            items.append(bitem)
-        if key == 'aevs':
-            return items, ids, nmols
-        else:
-            return items
 
 
     def _run_batch_tvs(self, tvs, aevs, ids, nmols, true_engs, true_forces=[], fdims=[], daevs=[]):
 
         if tvs == 'train':
             self.optimizer.zero_grad()
+        #print(tvs, self.device, true_engs)
         pred_engs, log_sigma = self.model(aevs, ids, nmols)
+        #print(tvs, self.device, pred_engs)
         ediff = prep.energy_abs_dif(pred_engs, true_engs)
         fdiff=[]        #This is a placeholder for when not doing force training
+        fL1 = 0.0
+        fL2 = 0.0
+        fLinf = 0.0
+        fw=1.0
         if self.FT:
             pred_forces = daev_calc.cal_dEdxyz_ddp(aevs, -pred_engs, daevs, ids)
             fdiff = prep.force_abs_dif(pred_forces, true_forces, fdims)
+            fw=[]
+            sw=[]
+            natoms = []
+            for mol in range(len(true_forces)):
+                fw_by_sol = torch.ones(fdims[mol])
+                ci = torch.where(ids[0]==mol)[0]
+                hi = torch.where(ids[1]==mol)[0]
+                oi = torch.where(ids[2]==mol)[0]
+                natoms.append(int(fdims[mol])/3)
+                #natoms.append(len(fdims[mol]))
+                foi = len(ci)*3 + len(hi)*3
+                #fw_by_sol[0:12] *= 3
+                #print(len(ci), len(hi), len(oi))
+                #fw_by_sol[0:len(ci)*3] *= (len(oi)-1)/2
+                #fw_by_sol[len(ci)*3:len(ci)*3+18] *= (len(hi)-1)/6
+                #fw_by_sol[foi:foi+3] *= (len(oi)-1)
+                
+                fw_by_sol[0:len(ci)*3] *= 3
+                #fw_by_sol[len(ci)*3:len(ci)*3+12] *= 3
+                fw_by_sol[len(ci)*3:len(ci)*3+30] *= 3
+                fw_by_sol[foi:foi+3] *= 3
+                #print(fw_by_sol)
+                sw.append(fw_by_sol.to(self.device))
+                sfba = torch.reshape(true_forces[mol][0:fdims[mol]], (int(len(true_forces[mol][0:fdims[mol]])/3), 3))
+                sfba = sfba**2
+                sfba = torch.sum(sfba,dim=1)
+                sfba = sfba**(1/2)
+                sfba = torch.repeat_interleave(sfba, repeats=3)
+                fw.append(torch.clamp(1.0/sfba,1.0,1.0))     #THIS ONE
+            with torch.no_grad():
+                fL1 = torch.mean(fdiff[0])
+                fL2 = torch.sqrt(torch.mean(fdiff[0]**2))
+                fLinf = torch.max(fdiff[0])
+            natoms = torch.tensor(natoms, device=self.device)
         if tvs == 'train':
-            eloss, floss = prep.my_loss(ediff, fdiff, dEsq=1., dfsq=1., p=2)
+            if self.FT:
+                eloss, floss = prep.my_loss(ediff, fdiff, natoms, fw=fw, sw=sw, dE=self.energy_range, dF=self.force_range, p=2.)
+            else:
+                eloss, floss = prep.my_loss(ediff, fdiff, natoms, p=2.)
             loss = self.model.mtl([eloss, floss], log_sigma)
+            #loss = self.Ew * eloss + self.Fw * floss
             self.log_sigma = log_sigma
-            loss.backward(retain_graph=True)
-            loss.retain_grad()
-            self.optimizer.step()
-        return ediff, fdiff
+            #loss.backward(retain_graph=True)     #THIS
+            loss.backward(retain_graph=False)
+            #loss.retain_grad()                    #THIS
+            self.optimizer.step()                 #THIS
+            #self.optimizer.zero_grad()
+
+        return ediff, fL1, fL2, fLinf
     
 
 
-    def _run_epoch(self, epoch, data, ids, nmols, tvs):
-        bat_lst = list(range(len(data['engs'])))
+    def _run_epoch(self, epoch, data, tvs):
+        bat_lst = list(range(len(data)))
         ediff = []
-        fdiff = []
-        for b in bat_lst:
+        fL1 = 0
+        fL2 = 0
+        fLinf = 0
+        bc = 0
+        for bat in data:
+            #print('batch: ', bc)
             if self.FT:
-                bediff, bfdiff = self._run_batch_tvs(tvs, data['aevs'][b], ids[b], nmols[b], data['engs'][b], data['forces'][b], data['fdims'][b], data['daevs'][b])
-                fdiff += bfdiff
+                #bediff, bfdiff = self._run_batch_tvs(tvs, data[b][0], data[b][1], data[b][2], data[b][-1], data[b][3], data[b][4], data[b][5])
+                bediff, bfL1, bfL2, bfLinf = self._run_batch_tvs(tvs, bat[0], bat[1], bat[2], bat[-1], bat[3], bat[5], bat[4])
+                fL1 += bfL1
+                fL2 += bfL2
+                if bfLinf > fLinf:
+                    fLinf = bfLinf
             else:
-                bediff, bfdiff = self._run_batch_tvs(tvs, data['aevs'][b], ids[b], nmols[b], data['engs'][b])
+                #bediff, bfdiff = self._run_batch_tvs(tvs, data[b][0], data[b][1], data[b][2], data[b][-1])
+                bediff, bfL1, bfL2, bfLinf = self._run_batch_tvs(tvs, bat[0], bat[1], bat[2], bat[-1])
             ediff += bediff
+            bc+=1
         ediff = torch.tensor(ediff)
         L1 = torch.mean(ediff)
         L2 = torch.sqrt(torch.mean(ediff**2))
@@ -252,24 +282,40 @@ class Trainer:
         print('device ', self.device, ' ',tvs + ' MAE: ', kcpm(L1.item()))
         print('device ', self.device, ' ',tvs + ' RMSE: ', kcpm(L2.item()))
         print('device ', self.device, ' ',tvs + ' Linf: ', kcpm(Linf.item()))
+         
         if self.FT:
-            fdiff = torch.cat(fdiff)
-            fL1 = torch.mean(fdiff)
-            fL2 = torch.sqrt(torch.mean(fdiff**2))
-            fLinf = torch.max(fdiff)
+        #    fdiff = torch.cat(fdiff)
+        #    fL1 = torch.mean(fdiff1)
+            fL1 = fL1/bc
+            fL2 = fL2/bc
+        #    fL2 = torch.sqrt(torch.mean(fdiff**2))
+        #    fLinf = torch.max(fdiff)
             self.openf.write(tvs + ' fL1 loss: ' + str(kcpm(fL1.item())) + '\n')
             self.openf.write(tvs + ' fL2 loss: ' + str(kcpm(fL2.item())) + '\n')
             self.openf.write(tvs + ' fLinf loss: ' + str(kcpm(fLinf.item())) + '\n')
-            print('device ', self.device, ' ',tvs + ' FMAE: ', kcpm(fL1.item()))
-            print('device ', self.device, ' ',tvs + ' FRMSE: ', kcpm(fL2.item()))
+            print('device ', self.device, ' ',tvs + ' avg FL1: ', kcpm(fL1.item()))
+            print('device ', self.device, ' ',tvs + ' avg FL2: ', kcpm(fL2.item()))
             print('device ', self.device, ' ',tvs + ' FLinf: ', kcpm(fLinf.item()))
-            self.openf.write('log_sigma: ')
-            for task in range(len(self.log_sigma)):
-                self.openf.write(str(self.log_sigma[task].item())+' ')
+        #    self.openf.write('log_sigma: ')
+        #    for task in range(len(self.log_sigma)):
+        #        self.openf.write(str(self.log_sigma[task].item())+' ')
+
         self.openf.write('\n')
         if tvs == 'valid':
-            self.lr_scheduler.step(kcpm(L2))
-
+            #self.lr_scheduler.step(kcpm(L2))
+            #if self.FT:
+            #    loss = self.model.mtl([L2, fL2], self.log_sigma)
+            #else:
+            loss = L2 + fL2
+            #print(loss)
+            self.lr_scheduler.step(kcpm(loss))
+            if loss < self.best:
+                print('NEW BEST: ', epoch, loss)
+                self.best = loss
+                if self.device == 'cpu':
+                    self.save_cpu('best', epoch, self.optimizer)
+                elif self.device == 0:
+                    self.save_ddp('best', epoch, self.optimizer)
 
 
     def train(self, max_epochs: int):
@@ -283,31 +329,31 @@ class Trainer:
             if param.requires_grad:
                 self.openf.write(name + ': ' + str(param.data) + '\n')
         
-        print('self.keys: ', self.keys)
-        train_dict = {} 
-        valid_dict = {}
-        test_dict = {}
-
         
-        for i in range(len(self.keys)):
-            if self.keys[i] == 'aevs':
-                train_dict[self.keys[i]], tr_ids, tr_nmols = prep.cat_data(self.train_data, self.keys[i], i, self.device, self.num_spec)#self.cat_data(self.train_data, self.keys[i], i)
-                valid_dict[self.keys[i]], vl_ids, vl_nmols = prep.cat_data(self.valid_data, self.keys[i], i, self.device, self.num_spec)#self.cat_data(self.valid_data, self.keys[i], i)
-                test_dict[self.keys[i]], ts_ids, ts_nmols = prep.cat_data(self.test_data, self.keys[i], i, self.device, self.num_spec)#self.cat_data(self.test_data, self.keys[i], i)
-            else:
-                train_dict[self.keys[i]] = prep.cat_data(self.train_data, self.keys[i], i, self.device, self.num_spec)#self.cat_data(self.train_data, self.keys[i], i)
-                valid_dict[self.keys[i]] = prep.cat_data(self.valid_data, self.keys[i], i, self.device, self.num_spec)#self.cat_data(self.valid_data, self.keys[i], i)
-                test_dict[self.keys[i]] = prep.cat_data(self.test_data, self.keys[i], i, self.device, self.num_spec)#self.cat_data(self.test_data, self.keys[i], i)
+        print('self.keys: ', self.keys)
 
-
+        print('self.train_data: ', len(self.train_data)) 
 
         for epoch in range(max_epochs):
+            #if epoch < 25:
+            #    self.FT=True
+            #else:
+            #    if (epoch % 3) == 0:
+            #        self.FT=True
+            #    else:
+            #        self.FT=False
             print('\ndevice ', self.device,' epoch: ', epoch)
             self.openf.write('\nepoch: ' + str(epoch) + '\n')
-            self._run_epoch(epoch, train_dict, tr_ids, tr_nmols, tvs='train')
-            self._run_epoch(epoch, valid_dict, vl_ids, vl_nmols, tvs='valid')
+            if self.device == 'cpu' or self.device == 0:
+                LR = get_lr(self.optimizer)
+                self.openf.write('LR: '+str(LR)+'\n')
+            if self.sampler is not None:
+                self.sampler.set_epoch(epoch)
+            self._run_epoch(epoch, self.train_data, tvs='train')
+            self.FT=True
             if self.device == 0 or self.device == 'cpu':
-                self._run_epoch(epoch, test_dict, ts_ids, ts_nmols, tvs='test')
+                self._run_epoch(epoch, self.valid_data, tvs='valid')
+                self._run_epoch(epoch, self.test_data, tvs='test')
             
             if self.device == 'cpu' and (epoch % self.save_every == 0 or epoch  + 1 == max_epochs):
                 self.save_cpu('model', epoch, self.optimizer)
@@ -365,15 +411,21 @@ def spawned_trainer(rank, args, world_size:int):
     print('about to load train objects!')
     save_path = args.savenm# + '_seeds_'+str(seeds[0])+'_'+str(seeds[1])
     torch.autograd.set_detect_anomaly(True)
-    train_set, valid_set, test_set, model, optimizer, lr_scheduler, sae_energies, keys = prep.load_train_objs(args, fid=args.fidlevel)
-    prep.set_up_task_weights(model, args, optimizer)
+    train_set, valid_set, test_set, model, optimizer, lr_scheduler, sae_energies, keys, sampler, force_average, force_range, energy_range = prep.load_train_objs(args, rank, fid=args.fidlevel)
+    #print(next(model.parameters()).device)
+    if not args.load_model:
+        prep.set_up_task_weights(model, args, optimizer, log_sigma=[-1])
     device = rank
+    #print(next(model.parameters()).device)
     if args.ddp:
         model = DDP(model.to(device), device_ids=[device], find_unused_parameters=True)
         model.mtl = model.module.mtl
     else:
         model = model.to(device)
-    trainer = Trainer(model, train_set, valid_set, test_set, keys, optimizer, lr_scheduler, sae_energies, args.save_every, fname, save_path, device, force_train=args.floss, num_spec = args.num_species) 
+    #for bv in valid_set:
+    #    print(bv)
+    #sys.exit()
+    trainer = Trainer(model, train_set, valid_set, test_set, keys, optimizer, lr_scheduler, sae_energies, args.save_every, fname, save_path, device, force_train=args.floss, sampler=sampler, force_average = force_average, force_range = force_range, energy_range = energy_range, num_spec = args.num_species) 
     trainer.train(args.epochs)
     if args.ddp:
         destroy_process_group()
